@@ -1,0 +1,6 @@
+{
+  "appId": "com.appsheinblank.starter",
+  "appName": "Shein Blank App",
+  "webDir": "build",
+  "bundledWebRuntime": false
+}
