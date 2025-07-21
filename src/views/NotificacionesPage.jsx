@@ -20,6 +20,13 @@ const NotificacionesPage = () => {
   const controller = useNotificacionesController();
   const [showFilters, setShowFilters] = useState(false);
 
+  // Debug temporal
+  console.log('🔍 NotificacionesPage - Estado del controller:', {
+    notificaciones: controller.notificaciones,
+    loading: controller.loading,
+    contadorNoLeidas: controller.contadorNoLeidas
+  });
+
   const handleMarkAsRead = async (notificationId) => {
     try {
       await controller.marcarComoLeido(notificationId);

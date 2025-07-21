@@ -17,6 +17,13 @@ import { mockData, createMockSubscription } from '../utils/mockData';
 // Flag to determine if we should use mock data
 let useMockData = false; // Use Firebase for real data storage
 
+// Export function to check/set mock data mode
+export const getMockDataMode = () => useMockData;
+export const setMockDataMode = (value) => {
+  useMockData = value;
+  console.log('🔧 Mock data mode set to:', useMockData);
+};
+
 // Helper function to get collection reference
 const getCollectionRef = (db, userId, appId, collectionName, isPublic = false) => {
   if (isPublic) {
@@ -46,8 +53,10 @@ export const NOTIFICATION_PRIORITY = {
 
 // Create notification
 export const createNotification = async (db, userId, appId, notificationData) => {
+  console.log('🔍 createNotification llamado con useMockData:', useMockData);
+  
   if (useMockData) {
-    console.log('Using mock data for notification creation');
+    console.log('📦 Using mock data for notification creation');
     const newNotification = {
       id: `mock-notif-${Date.now()}`,
       ...notificationData,
@@ -59,17 +68,27 @@ export const createNotification = async (db, userId, appId, notificationData) =>
     return newNotification.id;
   }
 
+  console.log('🔥 Intentando crear notificación en Firebase...');
+  
   try {
+    const collectionPath = `artifacts/${appId}/users/${userId}/notificaciones`;
+    console.log('📂 Creando en colección:', collectionPath);
+    
     const docRef = await addDoc(getCollectionRef(db, userId, appId, 'notificaciones'), {
       ...notificationData,
       fechaCreacion: serverTimestamp(),
       leido: false,
     });
+    
+    console.log('✅ Notificación creada exitosamente con ID:', docRef.id);
     return docRef.id;
   } catch (e) {
-    console.error("Error creating notification: ", e);
+    console.error("❌ Error creating notification: ", e);
+    console.error("🔍 Error code:", e.code);
+    console.error("📝 Error message:", e.message);
+    
     if (e.code === 'permission-denied' || e.code === 'unavailable') {
-      console.warn('Firebase not accessible, switching to mock data');
+      console.warn('⚠️ Firebase not accessible, switching to mock data');
       useMockData = true;
       return createNotification(db, userId, appId, notificationData);
     }
@@ -79,21 +98,29 @@ export const createNotification = async (db, userId, appId, notificationData) =>
 
 // Subscribe to notifications
 export const subscribeToNotifications = (db, userId, appId, callback) => {
+  console.log('🔍 subscribeToNotifications llamado con:', { userId, appId, useMockData });
+  
   if (useMockData) {
-    console.log('Using mock data for notifications subscription');
+    console.log('📦 Using mock data for notifications subscription');
     if (!mockData.notificaciones) mockData.notificaciones = [];
     return createMockSubscription(mockData.notificaciones, callback);
   }
 
   try {
+    const collectionPath = `artifacts/${appId}/users/${userId}/notificaciones`;
+    console.log('📂 Suscribiéndose a colección:', collectionPath);
+    
     const q = query(
       getCollectionRef(db, userId, appId, 'notificaciones'),
       orderBy('fechaCreacion', 'desc')
     );
     
     return onSnapshot(q, (snapshot) => {
+      console.log('📊 Snapshot recibido con', snapshot.docs.length, 'documentos');
+      
       const notificationsData = snapshot.docs.map(doc => {
         const data = doc.data();
+        console.log('📄 Documento:', doc.id, data);
         
         // Handle fechaCreacion
         let fechaCreacion;
@@ -115,17 +142,18 @@ export const subscribeToNotifications = (db, userId, appId, callback) => {
         };
       });
 
+      console.log('✅ Notificaciones procesadas:', notificationsData);
       callback(notificationsData);
     }, (error) => {
-      console.error("Error al obtener notificaciones:", error);
+      console.error("❌ Error al obtener notificaciones:", error);
       if (error.code === 'permission-denied' || error.code === 'unavailable') {
-        console.warn('Firebase subscription failed, switching to mock data');
+        console.warn('⚠️ Firebase subscription failed, switching to mock data');
         useMockData = true;
         return subscribeToNotifications(db, userId, appId, callback);
       }
     });
   } catch (error) {
-    console.error("Error setting up notifications subscription:", error);
+    console.error("❌ Error setting up notifications subscription:", error);
     useMockData = true;
     return subscribeToNotifications(db, userId, appId, callback);
   }

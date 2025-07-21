@@ -34,11 +34,27 @@ export const usePedidosController = (db, userId, appId) => {
   });
   const [editingId, setEditingId] = useState(null);
 
-  useEffect(() => {
-    if (!db || !userId) return;
+  console.log('🔍 PedidosController iniciado con:', { db: !!db, userId, appId });
+  console.log('📋 Estado actual de pedidos:', pedidos);
 
-    const unsubscribe = subscribeToPedidos(db, userId, appId, setPedidos);
-    return unsubscribe;
+  useEffect(() => {
+    console.log('🔄 useEffect de pedidos ejecutándose con:', { db: !!db, userId, appId });
+    
+    if (!db || !userId) {
+      console.warn('⚠️ DB o userId no disponibles, saltando suscripción');
+      return;
+    }
+
+    console.log('📡 Iniciando suscripción a pedidos...');
+    const unsubscribe = subscribeToPedidos(db, userId, appId, (pedidosData) => {
+      console.log('📋 Pedidos recibidos en controller:', pedidosData);
+      setPedidos(pedidosData);
+    });
+    
+    return () => {
+      console.log('🔌 Desconectando suscripción de pedidos');
+      if (unsubscribe) unsubscribe();
+    };
   }, [db, userId, appId]);
 
   const calculateTotals = (products) => {

@@ -135,17 +135,25 @@ export const getDocumentById = async (db, userId, appId, collectionName, docId, 
 
 // Pedidos-specific operations
 export const subscribeToPedidos = (db, userId, appId, callback) => {
+  console.log('🔍 subscribeToPedidos llamado con:', { userId, appId, useMockData });
+  
   // Use mock data if Firebase is not accessible
   if (useMockData) {
-    console.log('Using mock data for pedidos subscription');
+    console.log('📦 Using mock data for pedidos subscription');
     return createMockSubscription(mockData.pedidos, callback);
   }
 
   try {
+    const collectionPath = `artifacts/${appId}/users/${userId}/pedidos`;
+    console.log('📂 Suscribiéndose a colección de pedidos:', collectionPath);
+    
     const q = query(getCollectionRef(db, userId, appId, 'pedidos'), where('isArchived', '==', false));
     return onSnapshot(q, (snapshot) => {
+      console.log('📊 Snapshot de pedidos recibido con', snapshot.docs.length, 'documentos');
+      
       const pedidosData = snapshot.docs.map(doc => {
         const data = doc.data();
+        console.log('📄 Pedido documento:', doc.id, data);
         
         // Handle fechaEstimadaLlegada
         let fechaEstimadaLlegada;
@@ -189,18 +197,19 @@ export const subscribeToPedidos = (db, userId, appId, callback) => {
       return dateB - dateA;
     });
 
+    console.log('✅ Pedidos procesados:', pedidosData);
     callback(pedidosData);
   }, (error) => {
-    console.error("Error al obtener pedidos:", error);
+    console.error("❌ Error al obtener pedidos:", error);
     // Switch to mock data if Firebase fails
     if (error.code === 'permission-denied' || error.code === 'unavailable') {
-      console.warn('Firebase subscription failed, switching to mock data');
+      console.warn('⚠️ Firebase subscription failed, switching to mock data');
       useMockData = true;
       return subscribeToPedidos(db, userId, appId, callback);
     }
   });
   } catch (error) {
-    console.error("Error setting up pedidos subscription:", error);
+    console.error("❌ Error setting up pedidos subscription:", error);
     useMockData = true;
     return subscribeToPedidos(db, userId, appId, callback);
   }

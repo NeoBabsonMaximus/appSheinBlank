@@ -15,12 +15,29 @@ const firebaseConfig = {
   measurementId: "G-JQ7Q9MBHPE"
 };
 
+console.log('🔥 Inicializando Firebase con configuración:', firebaseConfig);
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const analytics = getAnalytics(app);
 
+console.log('🔥 Firebase inicializado correctamente');
+console.log('🔑 Auth:', auth);
+console.log('🗄️ Database:', db);
+
+// Solo inicializar Analytics si estamos en el navegador
+let analytics = null;
+if (typeof window !== 'undefined') {
+  try {
+    analytics = getAnalytics(app);
+    console.log('📊 Analytics inicializado:', analytics);
+  } catch (error) {
+    console.warn('⚠️ No se pudo inicializar Analytics:', error);
+  }
+}
+
+export { analytics };
 export default app;

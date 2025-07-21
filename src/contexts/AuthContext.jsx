@@ -44,7 +44,17 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
-  const userId = user?.uid;
+  // Para usar los datos existentes, forzar el userId específico
+  const userId = 'zpVKGnsFlGM3scVLT6GTSVQGjTr2'; // user?.uid;
+
+  // Debug temporal
+  console.log('🔍 AuthContext - Valores actuales:', {
+    userId,
+    db: !!db,
+    appId,
+    loadingAuth,
+    user: !!user
+  });
 
   return (
     <AuthContext.Provider value={{ userId, db, auth, appId, loadingAuth }}>

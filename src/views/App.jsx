@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import HomePage from './HomePage';
 import PedidosPage from './PedidosPage';
+import PedidosArchivadosPage from './PedidosArchivadosPage';
 import CatalogoPage from './CatalogoPage';
 import ClientesPage from './ClientesPage';
 import FinanzasPage from './FinanzasPage';
@@ -10,7 +11,7 @@ import NotificacionesPage from './NotificacionesPage';
 import OrderShareView from './OrderShareView';
 import NotificationBadge from '../components/NotificationBadge';
 import useNotificacionesController from '../controllers/useNotificacionesController';
-import { Home, Package, ShoppingBag, Users, DollarSign, Bell } from 'lucide-react';
+import { Home, Package, ShoppingBag, Users, DollarSign, Bell, Archive } from 'lucide-react';
 
 // Navigation Item Component
 const NavItem = ({ icon, label, page, currentPage, setCurrentPage, badge }) => {
@@ -66,6 +67,8 @@ const App = () => {
         return <HomePage />;
       case 'pedidos':
         return <PedidosPage />;
+      case 'pedidos-archivados':
+        return <PedidosArchivadosPage />;
       case 'catalogo':
         return <CatalogoPage />;
       case 'clientes':
@@ -103,6 +106,7 @@ const App = () => {
           <ul className="flex justify-around items-center h-full">
             <NavItem icon={<Home size={24} />} label="Inicio" page="home" currentPage={currentPage} setCurrentPage={setCurrentPage} />
             <NavItem icon={<Package size={24} />} label="Pedidos" page="pedidos" currentPage={currentPage} setCurrentPage={setCurrentPage} />
+            <NavItem icon={<Archive size={24} />} label="Archivados" page="pedidos-archivados" currentPage={currentPage} setCurrentPage={setCurrentPage} />
             <NavItem icon={<ShoppingBag size={24} />} label="Catálogo" page="catalogo" currentPage={currentPage} setCurrentPage={setCurrentPage} />
             <NavItem icon={<Users size={24} />} label="Clientes" page="clientes" currentPage={currentPage} setCurrentPage={setCurrentPage} />
             <NavItem icon={<DollarSign size={24} />} label="Finanzas" page="finanzas" currentPage={currentPage} setCurrentPage={setCurrentPage} />

@@ -18,14 +18,19 @@ const useNotificacionesController = (userId = 'demo-user', appId = 'shein-app') 
   const [filtroTipo, setFiltroTipo] = useState('all');
   const [filtroLeido, setFiltroLeido] = useState('all');
 
+  console.log('🔍 Notificaciones Controller iniciado con:', { userId, appId });
+
   // Subscribe to notifications
   useEffect(() => {
+    console.log('📡 Iniciando suscripción a notificaciones...');
     const unsubscribe = subscribeToNotifications(db, userId, appId, (notificationsData) => {
+      console.log('📋 Notificaciones recibidas:', notificationsData);
       setNotificaciones(notificationsData);
       setLoading(false);
     });
 
     return () => {
+      console.log('🔌 Desconectando suscripción a notificaciones');
       if (unsubscribe) unsubscribe();
     };
   }, [userId, appId]);
