@@ -413,6 +413,23 @@ export const usePedidosController = (db, userId, appId) => {
     });
   };
 
+  // Función para calcular totales financieros
+  const calculateFinancialTotals = () => {
+    const activePedidos = pedidos.filter(pedido => !pedido.isArchived);
+    
+    const totalGeneral = activePedidos.reduce((sum, pedido) => sum + (pedido.precioTotal || 0), 0);
+    const totalPendiente = activePedidos.reduce((sum, pedido) => sum + (pedido.saldoPendiente || 0), 0);
+    const totalPagado = totalGeneral - totalPendiente;
+    const porcentajePagado = totalGeneral > 0 ? (totalPagado / totalGeneral) * 100 : 0;
+    
+    return {
+      totalGeneral,
+      totalPagado,
+      totalPendiente,
+      porcentajePagado: Math.round(porcentajePagado)
+    };
+  };
+
   return {
     pedidos,
     currentPedido,
@@ -429,5 +446,6 @@ export const usePedidosController = (db, userId, appId) => {
     generateShareLink,
     resetCurrentPedido,
     setCurrentPedidoForEdit,
+    calculateFinancialTotals,
   };
 };

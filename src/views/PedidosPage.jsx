@@ -8,7 +8,8 @@ import Button from '../components/Button';
 import Modal from '../components/Modal';
 import Input from '../components/Input';
 import Select from '../components/Select';
-import { Archive, CreditCard, Share2, PlusCircle, Trash2, Copy, Send, Edit } from 'lucide-react';
+import FinancialSummaryFloat from '../components/FinancialSummaryFloat';
+import { Archive, CreditCard, Share2, PlusCircle, Trash2, Copy, Send, Edit, Search, X } from 'lucide-react';
 import { formatPhoneNumber } from '../utils/formatters';
 
 // Modal component for adding products to order
@@ -319,6 +320,7 @@ const PedidosPage = () => {
   const [currentShareablePhoneNumber, setCurrentShareablePhoneNumber] = useState('');
   const [paymentPedido, setPaymentPedido] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const handleSavePedido = async () => {
     try {
@@ -490,15 +492,51 @@ const PedidosPage = () => {
     }
   };
 
+  // Filtrar pedidos por nombre del cliente
+  const filteredPedidos = controller.pedidos.filter(pedido => 
+    pedido.nombreCliente.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="p-4">
       <Header title="Gestión de Pedidos" onAddClick={openAddModal} />
+      
+      {/* Buscador de pedidos */}
+      <div className="mt-3 mb-2 relative">
+        <div className="flex items-center w-full max-w-md mx-auto bg-white rounded-full border border-purple-300 overflow-hidden shadow-sm hover:shadow-md transition-all">
+          <div className="pl-4 py-2 text-gray-500">
+            <Search size={18} />
+          </div>
+          <input
+            type="text"
+            placeholder="Buscar pedido por nombre de cliente..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="py-2 px-3 w-full focus:outline-none text-gray-700"
+          />
+          {searchTerm && (
+            <button 
+              onClick={() => setSearchTerm('')}
+              className="pr-4 py-2 text-gray-500 hover:text-gray-700"
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
+        {searchTerm && (
+          <div className="mt-1 text-center text-xs text-gray-500">
+            Mostrando {filteredPedidos.length} de {controller.pedidos.length} pedidos
+          </div>
+        )}
+      </div>
 
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {controller.pedidos.length === 0 ? (
-          <p className="text-center text-gray-600 col-span-full">No hay pedidos activos. ¡Añade uno o revisa los archivados!</p>
+        {filteredPedidos.length === 0 ? (
+          <p className="text-center text-gray-600 col-span-full">
+            {searchTerm ? `No se encontraron pedidos con el nombre "${searchTerm}".` : "No hay pedidos activos. ¡Añade uno o revisa los archivados!"}
+          </p>
         ) : (
-          controller.pedidos.map((pedido) => (
+          filteredPedidos.map((pedido) => (
             <Card key={pedido.id} className="flex flex-col justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-800">Pedido para: {pedido.nombreCliente}</h3>
@@ -743,6 +781,9 @@ const PedidosPage = () => {
         shareLink={currentShareableLink}
         phoneNumber={currentShareablePhoneNumber}
       />
+
+      {/* Financial Summary Float */}
+      <FinancialSummaryFloat totals={controller.calculateFinancialTotals()} />
     </div>
   );
 };
