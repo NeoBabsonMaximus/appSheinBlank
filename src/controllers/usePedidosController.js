@@ -6,7 +6,7 @@ import {
   updateDocument, 
   deleteDocument
 } from '../models/pedidosModel';
-import { 
+import {
   collection,
   getDocs,
   query,
@@ -234,8 +234,9 @@ export const usePedidosController = (db, userId, appId) => {
         await updateDocument(db, userId, appId, 'pedidos', pedido.id, { shareableLinkToken: token });
       }
 
-      const baseUrl = window.location.origin;
-      const shareLink = `${baseUrl}/?view=share&token=${token}`;
+      // Use the deployed web URL instead of local origin for mobile compatibility
+      const webUrl = 'https://appsheinblank.web.app';
+      const shareLink = `${webUrl}/?view=share&token=${token}`;
       
       return shareLink;
     } catch (error) {
