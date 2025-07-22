@@ -8,7 +8,7 @@ import Button from '../components/Button';
 import Modal from '../components/Modal';
 import Input from '../components/Input';
 import Select from '../components/Select';
-import { Archive, CreditCard, Share2, PlusCircle, Trash2, Copy, Send } from 'lucide-react';
+import { Archive, CreditCard, Share2, PlusCircle, Trash2, Copy, Send, Edit } from 'lucide-react';
 import { formatPhoneNumber } from '../utils/formatters';
 
 // Modal component for adding products to order
@@ -73,6 +73,83 @@ const AddProductToOrderModal = ({ isOpen, onClose, onAddProduct }) => {
       />
       <Button onClick={handleAdd} className="mt-4 bg-purple-500 hover:bg-purple-600">
         Añadir Producto
+      </Button>
+    </Modal>
+  );
+};
+
+// Edit Product Modal Component
+const EditProductModal = ({ isOpen, onClose, onEditProduct, currentProduct }) => {
+  const [nombreProducto, setNombreProducto] = useState('');
+  const [cantidad, setCantidad] = useState('');
+  const [precioUnitario, setPrecioUnitario] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Update form when currentProduct changes
+  React.useEffect(() => {
+    if (currentProduct) {
+      setNombreProducto(currentProduct.nombreProducto || '');
+      setCantidad(currentProduct.cantidad ? currentProduct.cantidad.toString() : '');
+      setPrecioUnitario(currentProduct.precioUnitario ? currentProduct.precioUnitario.toString() : '');
+      setErrorMessage('');
+    }
+  }, [currentProduct]);
+
+  const handleEdit = () => {
+    const qty = parseInt(cantidad);
+    const unitPrice = parseFloat(precioUnitario);
+
+    if (!nombreProducto || isNaN(qty) || qty <= 0 || isNaN(unitPrice) || unitPrice <= 0) {
+      setErrorMessage('Por favor, completa todos los campos con valores válidos.');
+      return;
+    }
+
+    const updatedProduct = {
+      nombreProducto,
+      cantidad: qty,
+      precioUnitario: unitPrice,
+      subtotal: qty * unitPrice,
+    };
+    onEditProduct(updatedProduct);
+    onClose();
+    setNombreProducto('');
+    setCantidad('');
+    setPrecioUnitario('');
+    setErrorMessage('');
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Editar Producto">
+      {errorMessage && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4">
+          <span className="block sm:inline">{errorMessage}</span>
+        </div>
+      )}
+      <Input
+        label="Nombre del Producto"
+        id="nombreProducto"
+        value={nombreProducto}
+        onChange={(e) => { setNombreProducto(e.target.value); setErrorMessage(''); }}
+        placeholder="Ej: Vestido de verano"
+      />
+      <Input
+        label="Cantidad"
+        id="cantidad"
+        type="number"
+        value={cantidad}
+        onChange={(e) => { setCantidad(e.target.value); setErrorMessage(''); }}
+        placeholder="Ej: 1"
+      />
+      <Input
+        label="Precio Unitario"
+        id="precioUnitario"
+        type="number"
+        value={precioUnitario}
+        onChange={(e) => { setPrecioUnitario(e.target.value); setErrorMessage(''); }}
+        placeholder="Ej: 250.00"
+      />
+      <Button onClick={handleEdit} className="mt-4 bg-blue-500 hover:bg-blue-600">
+        Guardar Cambios
       </Button>
     </Modal>
   );
@@ -162,9 +239,14 @@ const PaymentModal = ({ isOpen, onClose, pedido, onPaymentSuccess, processPaymen
 
 // Share Link Modal Component
 const ShareLinkModal = ({ isOpen, onClose, shareLink, phoneNumber }) => {
+  const [linkCopied, setLinkCopied] = useState(false);
+
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareLink).then(() => {
       console.log("Enlace copiado al portapapeles:", shareLink);
+      setLinkCopied(true);
+      // Ocultar el mensaje después de 2 segundos
+      setTimeout(() => setLinkCopied(false), 2000);
     }).catch(() => {
       // Fallback for older browsers
       const textArea = document.createElement('textarea');
@@ -173,6 +255,9 @@ const ShareLinkModal = ({ isOpen, onClose, shareLink, phoneNumber }) => {
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
+      setLinkCopied(true);
+      // Ocultar el mensaje después de 2 segundos
+      setTimeout(() => setLinkCopied(false), 2000);
     });
   };
 
@@ -182,12 +267,27 @@ const ShareLinkModal = ({ isOpen, onClose, shareLink, phoneNumber }) => {
     window.open(whatsappUrl, '_blank');
   };
 
+  // Reset linkCopied when modal closes or opens
+  React.useEffect(() => {
+    if (!isOpen) {
+      setLinkCopied(false);
+    }
+  }, [isOpen]);
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Compartir Enlace del Pedido">
       <p className="text-gray-700 mb-2">Envía este enlace a tu cliente para que vea el estado de su pedido:</p>
       <div className="bg-gray-100 p-3 rounded-lg break-all text-sm mb-4">
         {shareLink}
       </div>
+      
+      {/* Mensaje de confirmación */}
+      {linkCopied && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-4 text-center">
+          <span className="font-semibold">ENLACE COPIADO</span>
+        </div>
+      )}
+      
       <div className="flex flex-col space-y-3">
         <Button onClick={handleCopyLink} className="bg-blue-500 hover:bg-blue-600 flex items-center justify-center">
           <Copy size={18} className="mr-2" /> Copiar Enlace
@@ -212,14 +312,18 @@ const PedidosPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false);
+  const [editingProductIndex, setEditingProductIndex] = useState(null);
   const [isShareLinkModalOpen, setIsShareLinkModalOpen] = useState(false);
   const [currentShareableLink, setCurrentShareableLink] = useState('');
   const [currentShareablePhoneNumber, setCurrentShareablePhoneNumber] = useState('');
   const [paymentPedido, setPaymentPedido] = useState(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const handleSavePedido = async () => {
     try {
       await controller.savePedido();
+      setHasUnsavedChanges(false); // Resetear el estado de cambios no guardados
       setIsModalOpen(false);
     } catch (error) {
       alert("Error al guardar el pedido. Por favor, inténtalo de nuevo.");
@@ -277,12 +381,103 @@ const PedidosPage = () => {
 
   const openAddModal = () => {
     controller.resetCurrentPedido();
+    setHasUnsavedChanges(false);
     setIsModalOpen(true);
   };
 
   const openEditModal = (pedido) => {
     controller.setCurrentPedidoForEdit(pedido);
+    setHasUnsavedChanges(false);
     setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    if (hasUnsavedChanges && controller.editingId) {
+      const confirmClose = window.confirm(
+        "Tienes cambios no guardados. ¿Estás seguro de que quieres cerrar sin guardar?\n\n" +
+        "• Los cambios se perderán\n" +
+        "• Puedes usar 'Guardar Cambios' para mantener las modificaciones"
+      );
+      if (!confirmClose) {
+        return; // No cerrar el modal
+      }
+    }
+    setHasUnsavedChanges(false);
+    setIsModalOpen(false);
+    controller.resetCurrentPedido();
+  };
+
+  const handleEditProduct = (productIndex) => {
+    setEditingProductIndex(productIndex);
+    setIsEditProductModalOpen(true);
+  };
+
+  const handleEditProductSubmit = async (updatedProduct) => {
+    if (editingProductIndex !== null) {
+      controller.editProductInCurrentPedido(editingProductIndex, updatedProduct);
+      setEditingProductIndex(null);
+      setIsEditProductModalOpen(false);
+      
+      // Marcar que hay cambios no guardados solo si estamos editando un pedido existente
+      if (controller.editingId) {
+        setHasUnsavedChanges(true);
+        try {
+          await controller.savePedido();
+          setHasUnsavedChanges(false);
+          console.log("Producto editado y pedido guardado automáticamente");
+        } catch (error) {
+          console.error("Error al guardar pedido después de editar producto:", error);
+          alert("Error al guardar los cambios del producto: " + error.message);
+        }
+      }
+    }
+  };
+
+  const handleAddProductSubmit = async (newProduct) => {
+    console.log("➕ HandleAddProductSubmit llamado con:", newProduct);
+    console.log("🆔 EditingId:", controller.editingId);
+    
+    controller.addProductToCurrentPedido(newProduct);
+    
+    // Marcar que hay cambios no guardados solo si estamos editando un pedido existente
+    if (controller.editingId) {
+      setHasUnsavedChanges(true);
+      try {
+        console.log("💾 Guardando pedido después de agregar producto...");
+        await controller.savePedido();
+        setHasUnsavedChanges(false);
+        console.log("✅ Producto agregado y pedido guardado automáticamente");
+      } catch (error) {
+        console.error("❌ Error al guardar pedido después de agregar producto:", error);
+        alert("Error al guardar el nuevo producto: " + error.message);
+      }
+    } else {
+      console.log("📝 Pedido nuevo - cambios solo en estado local");
+    }
+  };
+
+  const handleRemoveProduct = async (productIndex) => {
+    console.log("🗑️ HandleRemoveProduct llamado con index:", productIndex);
+    console.log("📋 Productos actuales:", controller.currentPedido.productos);
+    console.log("🆔 EditingId:", controller.editingId);
+    
+    controller.removeProductFromCurrentPedido(productIndex);
+    
+    // Marcar que hay cambios no guardados solo si estamos editando un pedido existente
+    if (controller.editingId) {
+      setHasUnsavedChanges(true);
+      try {
+        console.log("💾 Guardando pedido después de eliminar producto...");
+        await controller.savePedido();
+        setHasUnsavedChanges(false);
+        console.log("✅ Producto eliminado y pedido guardado automáticamente");
+      } catch (error) {
+        console.error("❌ Error al guardar pedido después de eliminar producto:", error);
+        alert("Error al guardar los cambios: " + error.message);
+      }
+    } else {
+      console.log("📝 Pedido nuevo - cambios solo en estado local");
+    }
   };
 
   const getEstadoColor = (estado) => {
@@ -360,14 +555,26 @@ const PedidosPage = () => {
       {/* Main Order Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={controller.editingId ? "Editar Pedido" : "Añadir Nuevo Pedido"}
+        onClose={handleCloseModal}
+        title={
+          <div className="flex items-center gap-2">
+            {controller.editingId ? "Editar Pedido" : "Añadir Nuevo Pedido"}
+            {hasUnsavedChanges && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                Sin guardar
+              </span>
+            )}
+          </div>
+        }
       >
         <Input
           label="Nombre del Cliente"
           id="nombreCliente"
           value={controller.currentPedido.nombreCliente}
-          onChange={(e) => controller.setCurrentPedido({ ...controller.currentPedido, nombreCliente: e.target.value })}
+          onChange={(e) => {
+            controller.setCurrentPedido({ ...controller.currentPedido, nombreCliente: e.target.value });
+            if (controller.editingId) setHasUnsavedChanges(true);
+          }}
           placeholder="Ej: María García"
         />
         <Input
@@ -375,7 +582,10 @@ const PedidosPage = () => {
           id="numeroTelefono"
           type="tel"
           value={controller.currentPedido.numeroTelefono}
-          onChange={(e) => controller.setCurrentPedido({ ...controller.currentPedido, numeroTelefono: e.target.value })}
+          onChange={(e) => {
+            controller.setCurrentPedido({ ...controller.currentPedido, numeroTelefono: e.target.value });
+            if (controller.editingId) setHasUnsavedChanges(true);
+          }}
           placeholder="Ej: 5512345678"
         />
 
@@ -386,17 +596,26 @@ const PedidosPage = () => {
           ) : (
             <ul className="border rounded-lg p-3 mb-2 bg-gray-50">
               {controller.currentPedido.productos.map((item, index) => (
-                <li key={index} className="flex justify-between items-center py-1 border-b last:border-b-0">
+                <li key={`${item.nombreProducto}-${index}-${item.cantidad}-${item.precioUnitario}`} className="flex justify-between items-center py-1 border-b last:border-b-0">
                   <span className="text-gray-700 text-sm">
                     {item.nombreProducto} (x{item.cantidad}) - ${item.subtotal?.toFixed(2) || '0.00'}
                   </span>
-                  <button
-                    onClick={() => controller.removeProductFromCurrentPedido(index)}
-                    className="text-red-500 hover:text-red-700 p-1 rounded-full"
-                    aria-label="Eliminar producto"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleEditProduct(index)}
+                      className="text-blue-500 hover:text-blue-700 p-1 rounded-full"
+                      aria-label="Editar producto"
+                    >
+                      <Edit size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleRemoveProduct(index)}
+                      className="text-red-500 hover:text-red-700 p-1 rounded-full"
+                      aria-label="Eliminar producto"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -414,7 +633,10 @@ const PedidosPage = () => {
           label="Estado"
           id="estado"
           value={controller.currentPedido.estado}
-          onChange={(e) => controller.setCurrentPedido({ ...controller.currentPedido, estado: e.target.value })}
+          onChange={(e) => {
+            controller.setCurrentPedido({ ...controller.currentPedido, estado: e.target.value });
+            if (controller.editingId) setHasUnsavedChanges(true);
+          }}
           options={[
             { value: 'Pendiente', label: 'Pendiente' },
             { value: 'Enviado', label: 'Enviado' },
@@ -427,20 +649,33 @@ const PedidosPage = () => {
           id="fechaEstimadaLlegada"
           type="date"
           value={controller.currentPedido.fechaEstimadaLlegada}
-          onChange={(e) => controller.setCurrentPedido({ ...controller.currentPedido, fechaEstimadaLlegada: e.target.value })}
+          onChange={(e) => {
+            controller.setCurrentPedido({ ...controller.currentPedido, fechaEstimadaLlegada: e.target.value });
+            if (controller.editingId) setHasUnsavedChanges(true);
+          }}
         />
         <Input
           label="Número de Rastreo (Opcional)"
           id="numeroRastreo"
           value={controller.currentPedido.numeroRastreo}
-          onChange={(e) => controller.setCurrentPedido({ ...controller.currentPedido, numeroRastreo: e.target.value })}
+          onChange={(e) => {
+            controller.setCurrentPedido({ ...controller.currentPedido, numeroRastreo: e.target.value });
+            if (controller.editingId) setHasUnsavedChanges(true);
+          }}
           placeholder="Ej: SY123456789"
         />
         <p className="text-gray-700 text-sm mb-2">Saldo Pendiente: <span className="font-bold">${controller.currentPedido.saldoPendiente?.toFixed(2) || '0.00'}</span></p>
         <p className="text-gray-700 text-sm mb-4">Pagado: <span className="font-bold">{controller.currentPedido.pagado ? 'Sí' : 'No'}</span></p>
 
-        <Button onClick={handleSavePedido} className="mt-4 bg-purple-500 hover:bg-purple-600" disabled={controller.currentPedido.productos.length === 0}>
-          {controller.editingId ? "Guardar Cambios" : "Añadir Pedido"}
+        <Button 
+          onClick={handleSavePedido} 
+          className={`mt-4 ${hasUnsavedChanges ? 'bg-orange-500 hover:bg-orange-600 animate-pulse' : 'bg-purple-500 hover:bg-purple-600'}`} 
+          disabled={controller.currentPedido.productos.length === 0}
+        >
+          {controller.editingId 
+            ? (hasUnsavedChanges ? "⚠️ Guardar Cambios" : "Guardar Cambios") 
+            : "Añadir Pedido"
+          }
         </Button>
       </Modal>
 
@@ -457,7 +692,18 @@ const PedidosPage = () => {
       <AddProductToOrderModal
         isOpen={isAddProductModalOpen}
         onClose={() => setIsAddProductModalOpen(false)}
-        onAddProduct={controller.addProductToCurrentPedido}
+        onAddProduct={handleAddProductSubmit}
+      />
+
+      {/* Edit Product Modal */}
+      <EditProductModal
+        isOpen={isEditProductModalOpen}
+        onClose={() => {
+          setIsEditProductModalOpen(false);
+          setEditingProductIndex(null);
+        }}
+        onEditProduct={handleEditProductSubmit}
+        currentProduct={editingProductIndex !== null ? controller.currentPedido.productos[editingProductIndex] : null}
       />
 
       {/* Share Link Modal */}

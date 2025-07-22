@@ -59,8 +59,29 @@ export const useClientesController = (db, userId, appId) => {
         message = 'Hola, te escribo desde tu app de pedidos SHEIN.';
     }
     
-    const formattedContactForWhatsapp = formatPhoneNumber(contact);
-    const whatsappUrl = `https://wa.me/${formattedContactForWhatsapp}?text=${encodeURIComponent(message)}`;
+    // Extraer solo los números del contacto
+    let numero = contact.toString().replace(/\D/g, '');
+    
+    // Si tiene 12 dígitos y empieza con 52, quitar el 52
+    if (numero.length === 12 && numero.startsWith('52')) {
+      numero = numero.substring(2);
+    }
+    
+    // NUEVA LÓGICA: Probar diferentes formatos según el prefijo
+    let whatsappUrl;
+    const prefijo = numero.substring(0, 3);
+    
+    if (prefijo === '442') {
+      // Para números de Querétaro, probar sin código de país
+      whatsappUrl = `https://wa.me/${numero}?text=${encodeURIComponent(message)}`;
+      console.log(`� Querétaro SIN código: https://wa.me/${numero}`);
+    } else {
+      // Para otros números, usar código de país normal
+      const numeroConCodigo = '52' + numero;
+      whatsappUrl = `https://wa.me/${numeroConCodigo}?text=${encodeURIComponent(message)}`;
+      console.log(`� Otros CON código: https://wa.me/${numeroConCodigo}`);
+    }
+    
     window.open(whatsappUrl, '_blank');
   };
 
