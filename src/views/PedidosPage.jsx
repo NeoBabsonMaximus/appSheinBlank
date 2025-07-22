@@ -507,14 +507,54 @@ const PedidosPage = () => {
                 <ul className="list-disc list-inside text-gray-600 text-sm mb-2">
                   {pedido.productos && pedido.productos.length > 0 ? (
                     pedido.productos.map((item, idx) => (
-                      <li key={idx}>
-                        {item.nombreProducto} (x{item.cantidad}) - ${item.subtotal?.toFixed(2) || '0.00'}
+                      <li key={idx} className="flex items-center justify-between">
+                        <span>
+                          {item.nombreProducto} (x{item.cantidad}) - ${item.subtotal?.toFixed(2) || '0.00'}
+                        </span>
+                        <span className={`text-xs px-2 py-1 rounded-full ml-2 ${
+                          item.estado === 'pendiente' ? 'bg-yellow-100 text-yellow-700' :
+                          item.estado === 'en_transito' ? 'bg-blue-100 text-blue-700' :
+                          item.estado === 'llegado' ? 'bg-green-100 text-green-700' :
+                          item.estado === 'entregado' ? 'bg-gray-100 text-gray-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {item.estado === 'pendiente' ? '⏳' :
+                           item.estado === 'en_transito' ? '🚚' :
+                           item.estado === 'llegado' ? '📦' :
+                           item.estado === 'entregado' ? '✅' :
+                           '❓'}
+                        </span>
                       </li>
                     ))
                   ) : (
                     <li>No hay productos registrados.</li>
                   )}
                 </ul>
+                
+                {/* Resumen de progreso del pedido */}
+                {pedido.productos && pedido.productos.length > 0 && (
+                  <div className="mb-2">
+                    {(() => {
+                      const productos = pedido.productos;
+                      const pendientes = productos.filter(p => !p.estado || p.estado === 'pendiente').length;
+                      const enTransito = productos.filter(p => p.estado === 'en_transito').length;
+                      const llegados = productos.filter(p => p.estado === 'llegado').length;
+                      const entregados = productos.filter(p => p.estado === 'entregado').length;
+                      const total = productos.length;
+                      
+                      if (entregados === total) {
+                        return <p className="text-xs text-green-600 font-medium">✅ Todos los productos entregados</p>;
+                      } else if (llegados + entregados === total) {
+                        return <p className="text-xs text-green-600 font-medium">📦 Todos los productos han llegado</p>;
+                      } else if (enTransito > 0) {
+                        return <p className="text-xs text-blue-600 font-medium">🚚 {enTransito}/{total} productos en tránsito</p>;
+                      } else {
+                        return <p className="text-xs text-yellow-600 font-medium">⏳ {pendientes}/{total} productos pendientes</p>;
+                      }
+                    })()}
+                  </div>
+                )}
+                
                 <p className="text-gray-600">Precio Total: <span className="font-bold">${pedido.precioTotal?.toFixed(2) || 'N/A'}</span></p>
                 <p className="text-gray-600">Saldo Pendiente: <span className="font-bold text-red-600">${pedido.saldoPendiente?.toFixed(2) || '0.00'}</span></p>
                 <p className="text-gray-600">Fecha Estimada: {pedido.fechaEstimadaLlegada || 'N/A'}</p>
@@ -596,24 +636,101 @@ const PedidosPage = () => {
           ) : (
             <ul className="border rounded-lg p-3 mb-2 bg-gray-50">
               {controller.currentPedido.productos.map((item, index) => (
-                <li key={`${item.nombreProducto}-${index}-${item.cantidad}-${item.precioUnitario}`} className="flex justify-between items-center py-1 border-b last:border-b-0">
-                  <span className="text-gray-700 text-sm">
-                    {item.nombreProducto} (x{item.cantidad}) - ${item.subtotal?.toFixed(2) || '0.00'}
-                  </span>
-                  <div className="flex items-center gap-2">
+                <li key={`${item.nombreProducto}-${index}-${item.cantidad}-${item.precioUnitario}`} className="flex flex-col gap-2 py-3 border-b last:border-b-0">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <span className="text-gray-700 text-sm font-medium">
+                        {item.nombreProducto} (x{item.cantidad}) - ${item.subtotal?.toFixed(2) || '0.00'}
+                      </span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          item.estado === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
+                          item.estado === 'en_transito' ? 'bg-blue-100 text-blue-800' :
+                          item.estado === 'llegado' ? 'bg-green-100 text-green-800' :
+                          item.estado === 'entregado' ? 'bg-gray-100 text-gray-800' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {item.estado === 'pendiente' ? '⏳ Pendiente' :
+                           item.estado === 'en_transito' ? '🚚 En Tránsito' :
+                           item.estado === 'llegado' ? '📦 Llegado' :
+                           item.estado === 'entregado' ? '✅ Entregado' :
+                           '❓ Sin Estado'}
+                        </span>
+                        {item.fechaLlegada && (
+                          <span className="text-xs text-gray-600">
+                            Llegó: {new Date(item.fechaLlegada).toLocaleDateString()}
+                          </span>
+                        )}
+                        {item.fechaEntrega && (
+                          <span className="text-xs text-gray-600">
+                            Entregado: {new Date(item.fechaEntrega).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleEditProduct(index)}
+                        className="text-blue-500 hover:text-blue-700 p-1 rounded-full"
+                        aria-label="Editar producto"
+                      >
+                        <Edit size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleRemoveProduct(index)}
+                        className="text-red-500 hover:text-red-700 p-1 rounded-full"
+                        aria-label="Eliminar producto"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Controles de estado del producto */}
+                  <div className="flex gap-1 flex-wrap">
                     <button
-                      onClick={() => handleEditProduct(index)}
-                      className="text-blue-500 hover:text-blue-700 p-1 rounded-full"
-                      aria-label="Editar producto"
+                      onClick={() => controller.updateProductStatus(index, 'pendiente')}
+                      className={`text-xs px-2 py-1 rounded ${
+                        item.estado === 'pendiente' 
+                          ? 'bg-yellow-200 text-yellow-800 cursor-default' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-yellow-100'
+                      }`}
+                      disabled={item.estado === 'pendiente'}
                     >
-                      <Edit size={18} />
+                      ⏳ Pendiente
                     </button>
                     <button
-                      onClick={() => handleRemoveProduct(index)}
-                      className="text-red-500 hover:text-red-700 p-1 rounded-full"
-                      aria-label="Eliminar producto"
+                      onClick={() => controller.updateProductStatus(index, 'en_transito')}
+                      className={`text-xs px-2 py-1 rounded ${
+                        item.estado === 'en_transito' 
+                          ? 'bg-blue-200 text-blue-800 cursor-default' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-blue-100'
+                      }`}
+                      disabled={item.estado === 'en_transito'}
                     >
-                      <Trash2 size={18} />
+                      🚚 En Tránsito
+                    </button>
+                    <button
+                      onClick={() => controller.updateProductStatus(index, 'llegado')}
+                      className={`text-xs px-2 py-1 rounded ${
+                        item.estado === 'llegado' 
+                          ? 'bg-green-200 text-green-800 cursor-default' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-green-100'
+                      }`}
+                      disabled={item.estado === 'llegado'}
+                    >
+                      📦 Llegado
+                    </button>
+                    <button
+                      onClick={() => controller.updateProductStatus(index, 'entregado')}
+                      className={`text-xs px-2 py-1 rounded ${
+                        item.estado === 'entregado' 
+                          ? 'bg-gray-200 text-gray-800 cursor-default' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-100'
+                      }`}
+                      disabled={item.estado === 'entregado'}
+                    >
+                      ✅ Entregado
                     </button>
                   </div>
                 </li>
