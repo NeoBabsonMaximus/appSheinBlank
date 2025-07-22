@@ -2,5 +2,10 @@
   "appId": "com.appsheinblank.starter",
   "appName": "Shein Blank App",
   "webDir": "build",
-  "bundledWebRuntime": false
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
 }
