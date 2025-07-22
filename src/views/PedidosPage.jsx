@@ -8,7 +8,6 @@ import Button from '../components/Button';
 import Modal from '../components/Modal';
 import Input from '../components/Input';
 import Select from '../components/Select';
-import FinancialSummaryFloat from '../components/FinancialSummaryFloat';
 import { Archive, CreditCard, Share2, PlusCircle, Trash2, Copy, Send, Edit, Search, X } from 'lucide-react';
 import { formatPhoneNumber } from '../utils/formatters';
 
@@ -781,9 +780,6 @@ const PedidosPage = () => {
         shareLink={currentShareableLink}
         phoneNumber={currentShareablePhoneNumber}
       />
-
-      {/* Financial Summary Float */}
-      <FinancialSummaryFloat totals={controller.calculateFinancialTotals()} />
     </div>
   );
 };

@@ -2,11 +2,14 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useHomeController } from '../controllers/useHomeController';
+import { usePedidosController } from '../controllers/usePedidosController';
 import Card from '../components/Card';
+import FinancialSummaryFloat from '../components/FinancialSummaryFloat';
 
 const HomePage = () => {
   const { userId, db, appId } = useAuth();
   const { pendingOrdersCount, deliveredTodayCount, weeklyRevenue } = useHomeController(db, userId, appId);
+  const pedidosController = usePedidosController(db, userId, appId);
 
   return (
     <div className="p-4">
@@ -33,6 +36,12 @@ const HomePage = () => {
             Ingresos Semanales: <span className="font-bold text-blue-600">${weeklyRevenue.toFixed(2)} MXN</span>
           </li>
         </ul>
+      </Card>
+
+      {/* Resumen Financiero Detallado */}
+      <Card className="mt-4">
+        <h3 className="text-lg font-semibold mb-3 text-gray-800">📊 Resumen Financiero Detallado</h3>
+        <FinancialSummaryFloat totals={pedidosController.calculateFinancialTotals()} isInCard={true} />
       </Card>
     </div>
   );
