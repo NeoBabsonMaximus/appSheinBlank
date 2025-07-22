@@ -507,14 +507,36 @@ const PedidosPage = () => {
                 <ul className="list-disc list-inside text-gray-600 text-sm mb-2">
                   {pedido.productos && pedido.productos.length > 0 ? (
                     pedido.productos.map((item, idx) => (
-                      <li key={idx}>
-                        {item.nombreProducto} (x{item.cantidad}) - ${item.subtotal?.toFixed(2) || '0.00'}
+                      <li key={idx} className="flex items-center justify-between">
+                        <span className={item.completed ? 'line-through text-gray-400' : ''}>
+                          {item.nombreProducto} (x{item.cantidad}) - ${item.subtotal?.toFixed(2) || '0.00'}
+                        </span>
+                        {item.completed && <span className="text-green-600 ml-2">✓</span>}
                       </li>
                     ))
                   ) : (
                     <li>No hay productos registrados.</li>
                   )}
                 </ul>
+                
+                {/* Progreso simple */}
+                {pedido.productos && pedido.productos.length > 0 && (
+                  <div className="mb-2">
+                    {(() => {
+                      const completados = pedido.productos.filter(p => p.completed).length;
+                      const total = pedido.productos.length;
+                      
+                      if (completados === total) {
+                        return <p className="text-xs text-green-600 font-medium">✅ Todos los productos completados ({total}/{total})</p>;
+                      } else if (completados > 0) {
+                        return <p className="text-xs text-blue-600 font-medium">📋 {completados}/{total} productos completados</p>;
+                      } else {
+                        return <p className="text-xs text-gray-600 font-medium">⏳ {total} productos pendientes</p>;
+                      }
+                    })()}
+                  </div>
+                )}
+                
                 <p className="text-gray-600">Precio Total: <span className="font-bold">${pedido.precioTotal?.toFixed(2) || 'N/A'}</span></p>
                 <p className="text-gray-600">Saldo Pendiente: <span className="font-bold text-red-600">${pedido.saldoPendiente?.toFixed(2) || '0.00'}</span></p>
                 <p className="text-gray-600">Fecha Estimada: {pedido.fechaEstimadaLlegada || 'N/A'}</p>
@@ -596,10 +618,18 @@ const PedidosPage = () => {
           ) : (
             <ul className="border rounded-lg p-3 mb-2 bg-gray-50">
               {controller.currentPedido.productos.map((item, index) => (
-                <li key={`${item.nombreProducto}-${index}-${item.cantidad}-${item.precioUnitario}`} className="flex justify-between items-center py-1 border-b last:border-b-0">
-                  <span className="text-gray-700 text-sm">
-                    {item.nombreProducto} (x{item.cantidad}) - ${item.subtotal?.toFixed(2) || '0.00'}
-                  </span>
+                <li key={`${item.nombreProducto}-${index}-${item.cantidad}-${item.precioUnitario}`} className="flex justify-between items-center py-2 border-b last:border-b-0">
+                  <div className="flex items-center gap-3 flex-1">
+                    <input
+                      type="checkbox"
+                      checked={item.completed || false}
+                      onChange={() => controller.toggleProductCompleted(index)}
+                      className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2"
+                    />
+                    <span className={`text-gray-700 text-sm ${item.completed ? 'line-through text-gray-500' : ''}`}>
+                      {item.nombreProducto} (x{item.cantidad}) - ${item.subtotal?.toFixed(2) || '0.00'}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleEditProduct(index)}

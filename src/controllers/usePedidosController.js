@@ -81,7 +81,14 @@ export const usePedidosController = (db, userId, appId) => {
     console.log("➕ Agregando producto:", newProduct);
     console.log("📝 Productos antes de agregar:", currentPedido.productos);
     isLocallyEditingRef.current = true;
-    const updatedProducts = [...currentPedido.productos, newProduct];
+    
+    // Agregar campo de completado al nuevo producto
+    const productWithCompletion = {
+      ...newProduct,
+      completed: false // Campo simple para marcar como completado
+    };
+    
+    const updatedProducts = [...currentPedido.productos, productWithCompletion];
     const { totalPrice, newSaldoPendiente } = calculateTotals(updatedProducts);
     console.log("📝 Productos después de agregar:", updatedProducts);
     setCurrentPedido({
@@ -132,6 +139,29 @@ export const usePedidosController = (db, userId, appId) => {
     });
     
     // NO resetear el flag aquí - se reseteará después del guardado automático
+  };
+
+  const toggleProductCompleted = (productIndex) => {
+    console.log(`✅ Cambiando estado de completado del producto ${productIndex}`);
+    isLocallyEditingRef.current = true;
+    
+    const updatedProducts = [...currentPedido.productos];
+    updatedProducts[productIndex] = {
+      ...updatedProducts[productIndex],
+      completed: !updatedProducts[productIndex].completed
+    };
+    
+    setCurrentPedido({
+      ...currentPedido,
+      productos: updatedProducts,
+    });
+    
+    // Guardar automáticamente el cambio
+    setTimeout(() => {
+      savePedido().catch(error => {
+        console.error("Error al guardar cambio de completado:", error);
+      });
+    }, 100);
   };
 
   const savePedido = async () => {
@@ -367,11 +397,17 @@ export const usePedidosController = (db, userId, appId) => {
     console.log("📋 Productos en pedido original:", pedido.productos?.length || 0);
     console.log("📋 Productos en pedido más reciente:", latestPedido.productos?.length || 0);
     
+    // Migrar productos existentes para que tengan campo completed
+    const productosWithCompletion = (latestPedido.productos || []).map(producto => ({
+      ...producto,
+      completed: producto.completed || false
+    }));
+    
     setEditingId(latestPedido.id);
     isLocallyEditingRef.current = true; // Activar modo de edición local cuando se abre un pedido para editar
     setCurrentPedido({
       ...latestPedido,
-      productos: latestPedido.productos || [],
+      productos: productosWithCompletion,
       fechaEstimadaLlegada: latestPedido.fechaEstimadaLlegada ? 
         new Date(latestPedido.fechaEstimadaLlegada).toISOString().split('T')[0] : '',
     });
@@ -385,6 +421,7 @@ export const usePedidosController = (db, userId, appId) => {
     addProductToCurrentPedido,
     removeProductFromCurrentPedido,
     editProductInCurrentPedido,
+    toggleProductCompleted,
     savePedido,
     deletePedido,
     archivePedido,
