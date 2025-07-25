@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="/favicon.ico" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#7C3AED" />
+  <meta name="description" content="Consulta el estado de tu pedido" />
+  
+  <title>Consulta tu Pedido</title>
+  
+  <script>
+    // Redirect to main app with user parameter
+    window.location.href = '/?view=user';
+  </script>
+</head>
+<body>
+  <div id="root">
+    <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #f3e8ff 0%, #fdf2f8 100%);">
+      <div style="text-align: center;">
+        <div style="width: 64px; height: 64px; border: 4px solid #e5e7eb; border-top: 4px solid #7c3aed; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+        <p style="color: #6b7280; font-family: system-ui, -apple-system, sans-serif;">Redirigiendo a consulta de pedidos...</p>
+      </div>
+    </div>
+  </div>
+  
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</body>
+</html>

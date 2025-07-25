@@ -1,6 +1,7 @@
 // Notificaciones Controller - Business Logic for Notifications Management
 import { useState, useEffect, useCallback } from 'react';
 import { db } from '../config/firebase';
+import { ENV_CONFIG } from '../config/environment';
 import { 
   subscribeToNotifications, 
   createNotification, 
@@ -8,11 +9,16 @@ import {
   markAllAsRead, 
   deleteNotification,
   generateAutomaticNotifications,
+  sendAdminResponse,
+  markMessageAsResponded,
   NOTIFICATION_TYPES,
   NOTIFICATION_PRIORITY
 } from '../models/notificacionesModel';
 
-const useNotificacionesController = (userId = 'demo-user', appId = 'shein-app') => {
+const useNotificacionesController = (
+  userId = ENV_CONFIG.ADMIN_USER_ID, 
+  appId = ENV_CONFIG.APP_ID
+) => {
   const [notificaciones, setNotificaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroTipo, setFiltroTipo] = useState('all');
@@ -131,6 +137,91 @@ const useNotificacionesController = (userId = 'demo-user', appId = 'shein-app') 
     });
   }, [crearNotificacion]);
 
+  // Responder mensaje de cliente
+  const responderMensajeCliente = useCallback(async (notificationId, clientPhone, responseMessage) => {
+    try {
+      console.log('📤 Enviando respuesta a cliente:', { notificationId, clientPhone, responseMessage });
+      
+      // Enviar respuesta al cliente
+      await sendAdminResponse(db, appId, clientPhone, responseMessage, notificationId);
+      
+      // Marcar el mensaje original como respondido
+      await markMessageAsResponded(db, userId, appId, notificationId, responseMessage);
+      
+      console.log('✅ Respuesta enviada exitosamente');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Error enviando respuesta:', error);
+      throw error;
+    }
+  }, [db, userId, appId]);
+
+  // Limpiar notificaciones con números de teléfono inválidos
+  const limpiarNotificacionesInvalidas = useCallback(async () => {
+    try {
+      console.log('🧹 Limpiando notificaciones con números de teléfono inválidos...');
+      
+      const notificacionesInvalidas = notificaciones.filter(notif => 
+        notif.tipo === 'mensaje_cliente' && 
+        (!notif.numeroTelefono || 
+         notif.numeroTelefono === 'undefined' || 
+         notif.numeroTelefono.toString().trim() === '')
+      );
+      
+      console.log(`🗑️ Encontradas ${notificacionesInvalidas.length} notificaciones inválidas`);
+      
+      for (const notif of notificacionesInvalidas) {
+        await eliminarNotificacion(notif.id);
+        console.log(`❌ Eliminada notificación inválida: ${notif.id}`);
+      }
+      
+      console.log('✅ Limpieza completada');
+      return notificacionesInvalidas.length;
+      
+    } catch (error) {
+      console.error('❌ Error limpiando notificaciones:', error);
+      throw error;
+    }
+  }, [notificaciones, eliminarNotificacion]);
+
+  // Enviar mensaje iniciado por admin (no como respuesta)
+  const enviarMensajeAdmin = useCallback(async (clientPhone, message) => {
+    try {
+      console.log('📤 Admin enviando mensaje inicial a:', clientPhone);
+      
+      // Limpiar y validar número de teléfono
+      let cleanPhone = clientPhone.toString().replace(/\D/g, '');
+      if (cleanPhone.length === 12 && cleanPhone.startsWith('52')) {
+        cleanPhone = cleanPhone.substring(2);
+      }
+      
+      if (cleanPhone.length < 10) {
+        throw new Error('Número de teléfono inválido');
+      }
+      
+      // Enviar mensaje directamente al cliente
+      await sendAdminResponse(db, appId, cleanPhone, message);
+      
+      // Crear una notificación interna para registro (opcional)
+      await crearNotificacion({
+        tipo: 'mensaje_admin_enviado',
+        titulo: `Mensaje enviado a ${cleanPhone}`,
+        mensaje: message,
+        prioridad: NOTIFICATION_PRIORITY.MEDIUM,
+        numeroTelefono: cleanPhone,
+        adminIniciado: true
+      });
+      
+      console.log('✅ Mensaje de admin enviado exitosamente');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Error enviando mensaje de admin:', error);
+      throw error;
+    }
+  }, [db, appId, crearNotificacion]);
+
   // Filter notifications
   const notificacionesFiltradas = notificaciones.filter(notif => {
     const cumpleFiltroTipo = filtroTipo === 'all' || notif.tipo === filtroTipo;
@@ -138,11 +229,43 @@ const useNotificacionesController = (userId = 'demo-user', appId = 'shein-app') 
       (filtroLeido === 'leido' && notif.leido) ||
       (filtroLeido === 'no_leido' && !notif.leido);
     
-    return cumpleFiltroTipo && cumpleFiltroLeido;
+    // Si el filtro es "all", excluir mensajes de cliente individuales ya que se muestran agrupados
+    const noEsMensajeClienteEnAll = !(filtroTipo === 'all' && notif.tipo === 'mensaje_cliente');
+    
+    return cumpleFiltroTipo && cumpleFiltroLeido && noEsMensajeClienteEnAll;
   });
 
   // Get unread count
   const contadorNoLeidas = notificaciones.filter(notif => !notif.leido).length;
+
+  // Group client messages by phone number for conversation view
+  const agruparMensajesPorTelefono = () => {
+    const clientMessages = notificaciones.filter(notif => 
+      notif.tipo === 'mensaje_cliente' && 
+      notif.numeroTelefono && 
+      notif.numeroTelefono !== 'undefined' &&
+      notif.numeroTelefono.toString().trim() !== ''
+    );
+    const grouped = {};
+    
+    clientMessages.forEach(message => {
+      const phone = message.numeroTelefono;
+      if (!grouped[phone]) {
+        grouped[phone] = [];
+      }
+      grouped[phone].push(message);
+    });
+    
+    // Convert to array and sort by most recent message
+    return Object.entries(grouped)
+      .map(([phone, messages]) => ({
+        phoneNumber: phone,
+        messages: messages.sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)),
+        lastMessageDate: Math.max(...messages.map(m => new Date(m.fechaCreacion).getTime())),
+        unreadCount: messages.filter(m => !m.leido).length
+      }))
+      .sort((a, b) => b.lastMessageDate - a.lastMessageDate);
+  };
 
   return {
     // Data
@@ -164,10 +287,16 @@ const useNotificacionesController = (userId = 'demo-user', appId = 'shein-app') 
     notificarCambioEstadoPedido,
     notificarPagoRecibido,
     notificarNuevoCliente,
+    responderMensajeCliente,
+    enviarMensajeAdmin,
+    limpiarNotificacionesInvalidas,
 
     // Filters
     setFiltroTipo,
     setFiltroLeido,
+
+    // Conversation grouping
+    agruparMensajesPorTelefono,
 
     // Constants
     NOTIFICATION_TYPES,

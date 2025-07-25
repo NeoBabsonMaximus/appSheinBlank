@@ -538,7 +538,13 @@ const PedidosPage = () => {
           filteredPedidos.map((pedido) => (
             <Card key={pedido.id} className="flex flex-col justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-800">Pedido para: {pedido.nombreCliente}</h3>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  {pedido.numeroPedido ? (
+                    <>Pedido {pedido.numeroPedido} - {pedido.nombreCliente}</>
+                  ) : (
+                    <>Pedido para: {pedido.nombreCliente}</>
+                  )}
+                </h3>
                 {pedido.numeroTelefono && <p className="text-gray-600">Teléfono: {pedido.numeroTelefono}</p>}
                 <p className="text-gray-700 font-bold mt-2">Productos:</p>
                 <ul className="list-disc list-inside text-gray-600 text-sm mb-2">
@@ -626,6 +632,14 @@ const PedidosPage = () => {
           </div>
         }
       >
+        {/* Mostrar número de pedido si es edición */}
+        {controller.editingId && controller.currentPedido.numeroPedido && (
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <p className="text-sm text-gray-600">Número de Pedido:</p>
+            <p className="font-semibold text-lg text-purple-600">{controller.currentPedido.numeroPedido}</p>
+          </div>
+        )}
+        
         <Input
           label="Nombre del Cliente"
           id="nombreCliente"

@@ -9,6 +9,7 @@ import ClientesPage from './ClientesPage';
 import FinanzasPage from './FinanzasPage';
 import NotificacionesPage from './NotificacionesPage';
 import OrderShareView from './OrderShareView';
+import UserApp from './UserApp';
 import NotificationBadge from '../components/NotificationBadge';
 import useNotificacionesController from '../controllers/useNotificacionesController';
 import { Home, Package, ShoppingBag, Users, DollarSign, Bell, Archive } from 'lucide-react';
@@ -42,11 +43,13 @@ const App = () => {
   const { loadingAuth } = useAuth();
   const { contadorNoLeidas: unreadCount } = useNotificacionesController();
 
-  // Logic to detect if URL is for shared view
+  // Logic to detect if URL is for shared view or user view
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('view') === 'share' && urlParams.get('token')) {
       setCurrentPage('shareOrderView');
+    } else if (urlParams.get('view') === 'user' || window.location.pathname.includes('/user')) {
+      setCurrentPage('userApp');
     }
   }, []);
 
@@ -61,6 +64,9 @@ const App = () => {
   const renderPage = () => {
     if (currentPage === 'shareOrderView') {
       return <OrderShareView />;
+    }
+    if (currentPage === 'userApp') {
+      return <UserApp />;
     }
     switch (currentPage) {
       case 'home':
@@ -82,8 +88,8 @@ const App = () => {
     }
   };
 
-  // Don't show navigation bar if we're in shared view
-  const showNavBar = currentPage !== 'shareOrderView';
+  // Don't show navigation bar if we're in shared view or user app
+  const showNavBar = currentPage !== 'shareOrderView' && currentPage !== 'userApp';
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">

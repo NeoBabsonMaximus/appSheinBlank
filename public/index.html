@@ -25,7 +25,7 @@
         measurementId: "G-JQ7Q9MBHPE"
       });
       var __initial_auth_token = null; // Para desarrollo local, usar autenticación anónima
-      var __app_id = "dev-local-app-id";
+      var __app_id = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? "dev-local-app-id" : "shein-blank-prod";
     </script>
   </head>
   <body>

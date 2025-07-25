@@ -1,5 +1,6 @@
 // Authentication Context (Shared State Management)
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { ENV_CONFIG } from '../config/environment';
 import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../config/firebase';
 
@@ -45,7 +46,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Para usar los datos existentes, forzar el userId específico
-  const userId = 'zpVKGnsFlGM3scVLT6GTSVQGjTr2'; // user?.uid;
+  const userId = ENV_CONFIG.ADMIN_USER_ID; // user?.uid;
 
   // Debug temporal
   console.log('🔍 AuthContext - Valores actuales:', {

@@ -3,6 +3,9 @@ import React, { useState } from 'react';
 import Header from '../components/Header';
 import Card from '../components/Card';
 import NotificationItem from '../components/NotificationItem';
+import ConversationCard from '../components/ConversationCard';
+import ResponseModal from '../components/ResponseModal';
+import NewMessageModal from '../components/NewMessageModal';
 import useNotificacionesController from '../controllers/useNotificacionesController';
 import { 
   Filter, 
@@ -13,12 +16,15 @@ import {
   ShoppingBag,
   CreditCard,
   User,
-  Settings
+  Settings,
+  MessageCircle
 } from 'lucide-react';
 
 const NotificacionesPage = () => {
   const controller = useNotificacionesController();
   const [showFilters, setShowFilters] = useState(false);
+  const [responseModal, setResponseModal] = useState({ isOpen: false, notification: null });
+  const [newMessageModal, setNewMessageModal] = useState(false);
 
   // Debug temporal
   console.log('🔍 NotificacionesPage - Estado del controller:', {
@@ -53,6 +59,35 @@ const NotificacionesPage = () => {
     }
   };
 
+  const handleReply = (notification) => {
+    console.log('📤 Opening reply modal for notification:', notification);
+    setResponseModal({ isOpen: true, notification });
+  };
+
+  const handleSendResponse = async (notificationId, clientPhone, responseMessage) => {
+    try {
+      await controller.responderMensajeCliente(notificationId, clientPhone, responseMessage);
+      console.log('✅ Response sent successfully');
+    } catch (error) {
+      console.error('❌ Error sending response:', error);
+      throw error;
+    }
+  };
+
+  const closeResponseModal = () => {
+    setResponseModal({ isOpen: false, notification: null });
+  };
+
+  const handleSendNewMessage = async (phoneNumber, message) => {
+    try {
+      await controller.enviarMensajeAdmin(phoneNumber, message);
+      console.log('✅ New message sent successfully');
+    } catch (error) {
+      console.error('❌ Error sending new message:', error);
+      throw error;
+    }
+  };
+
   const getFilterIcon = (tipo) => {
     switch (tipo) {
       case 'pedido_nuevo':
@@ -63,6 +98,9 @@ const NotificacionesPage = () => {
         return <CreditCard size={16} />;
       case 'cliente_nuevo':
         return <User size={16} />;
+      case 'mensaje_cliente':
+      case 'mensaje_admin_enviado':
+        return <MessageCircle size={16} />;
       case 'sistema':
         return <Settings size={16} />;
       default:
@@ -77,6 +115,8 @@ const NotificacionesPage = () => {
       case 'pago_pendiente': return 'Pagos Pendientes';
       case 'pago_recibido': return 'Pagos Recibidos';
       case 'cliente_nuevo': return 'Nuevos Clientes';
+      case 'mensaje_cliente': return 'Mensajes de Clientes';
+      case 'mensaje_admin_enviado': return 'Mensajes Enviados';
       case 'sistema': return 'Sistema';
       default: return 'Todas';
     }
@@ -89,6 +129,8 @@ const NotificacionesPage = () => {
     'pago_pendiente',
     'pago_recibido',
     'cliente_nuevo',
+    'mensaje_cliente',
+    'mensaje_admin_enviado',
     'sistema'
   ];
 
@@ -124,6 +166,14 @@ const NotificacionesPage = () => {
 
         <div className="flex items-center space-x-2">
           <button
+            onClick={() => setNewMessageModal(true)}
+            className="flex items-center space-x-2 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+          >
+            <MessageCircle size={16} />
+            <span>Nuevo mensaje</span>
+          </button>
+
+          <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center space-x-2 px-3 py-2 rounded-lg border transition-colors ${
               showFilters 
@@ -144,6 +194,25 @@ const NotificacionesPage = () => {
               <span>Marcar todas como leídas</span>
             </button>
           )}
+
+          <button
+            onClick={async () => {
+              try {
+                const deletedCount = await controller.limpiarNotificacionesInvalidas();
+                if (deletedCount > 0) {
+                  alert(`Se eliminaron ${deletedCount} notificaciones inválidas.`);
+                } else {
+                  alert('No se encontraron notificaciones inválidas.');
+                }
+              } catch (error) {
+                alert('Error al limpiar notificaciones. Inténtalo de nuevo.');
+              }
+            }}
+            className="flex items-center space-x-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+          >
+            <span>🧹</span>
+            <span>Limpiar inválidas</span>
+          </button>
         </div>
       </div>
 
@@ -218,38 +287,133 @@ const NotificacionesPage = () => {
 
       {/* Notifications List */}
       <Card>
-        {controller.notificaciones.length === 0 ? (
-          <div className="text-center py-8">
-            <Bell size={48} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-500 mb-2">
-              No hay notificaciones
-            </h3>
-            <p className="text-gray-400">
-              {controller.filtroTipo !== 'all' || controller.filtroLeido !== 'all'
-                ? 'No se encontraron notificaciones con los filtros aplicados.'
-                : 'Cuando recibas notificaciones, aparecerán aquí.'
-              }
-            </p>
-          </div>
+        {controller.filtroTipo === 'mensaje_cliente' ? (
+          // Mostrar conversaciones agrupadas para mensajes de clientes
+          (() => {
+            const conversations = controller.agruparMensajesPorTelefono();
+            return conversations.length === 0 ? (
+              <div className="text-center py-8">
+                <Bell size={48} className="mx-auto text-gray-300 mb-4" />
+                <h3 className="text-lg font-medium text-gray-500 mb-2">
+                  No hay conversaciones
+                </h3>
+                <p className="text-gray-400">
+                  Cuando recibas mensajes de clientes, aparecerán aquí agrupados por conversación.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <div className="mb-4 pb-4 border-b border-gray-200">
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Conversaciones con Clientes
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {conversations.length} conversación{conversations.length > 1 ? 'es' : ''} 
+                    {conversations.reduce((total, conv) => total + conv.unreadCount, 0) > 0 && 
+                      ` • ${conversations.reduce((total, conv) => total + conv.unreadCount, 0)} mensajes sin leer`
+                    }
+                  </p>
+                </div>
+                
+                <div className="space-y-4">
+                  {conversations.map(conversation => (
+                    <ConversationCard
+                      key={conversation.phoneNumber}
+                      phoneNumber={conversation.phoneNumber}
+                      messages={conversation.messages}
+                      onSendResponse={handleSendResponse}
+                      onMarkAsRead={handleMarkAsRead}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })()
         ) : (
-          <div>
-            <div className="mb-4 pb-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-800">
-                Notificaciones
-              </h2>
-            </div>
+          // Mostrar notificaciones individuales y conversaciones para "all"
+          (() => {
+            const conversations = controller.filtroTipo === 'all' ? controller.agruparMensajesPorTelefono() : [];
+            const hasNotifications = controller.notificaciones.length > 0;
+            const hasConversations = conversations.length > 0;
             
-            <div className="space-y-0">
-              {controller.notificaciones.map(notificacion => (
-                <NotificationItem
-                  key={notificacion.id}
-                  notification={notificacion}
-                  onMarkAsRead={handleMarkAsRead}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </div>
-          </div>
+            if (!hasNotifications && !hasConversations) {
+              return (
+                <div className="text-center py-8">
+                  <Bell size={48} className="mx-auto text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-500 mb-2">
+                    No hay notificaciones
+                  </h3>
+                  <p className="text-gray-400">
+                    {controller.filtroTipo !== 'all' || controller.filtroLeido !== 'all'
+                      ? 'No se encontraron notificaciones con los filtros aplicados.'
+                      : 'Cuando recibas notificaciones, aparecerán aquí.'
+                    }
+                  </p>
+                </div>
+              );
+            }
+            
+            return (
+              <div className="space-y-6">
+                {/* Conversaciones Section */}
+                {hasConversations && (
+                  <div>
+                    <div className="mb-4 pb-4 border-b border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-semibold text-gray-800">
+                          Conversaciones con Clientes
+                        </h2>
+                        <button
+                          onClick={() => controller.setFiltroTipo('mensaje_cliente')}
+                          className="text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          Ver todas →
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {conversations.length} conversación{conversations.length > 1 ? 'es' : ''} activa{conversations.length > 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {conversations.slice(0, 3).map(conversation => (
+                        <ConversationCard
+                          key={conversation.phoneNumber}
+                          phoneNumber={conversation.phoneNumber}
+                          messages={conversation.messages}
+                          onSendResponse={handleSendResponse}
+                          onMarkAsRead={handleMarkAsRead}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Other Notifications Section */}
+                {hasNotifications && (
+                  <div>
+                    <div className="mb-4 pb-4 border-b border-gray-200">
+                      <h2 className="text-lg font-semibold text-gray-800">
+                        Otras Notificaciones
+                      </h2>
+                    </div>
+                    
+                    <div className="space-y-0">
+                      {controller.notificaciones.map(notificacion => (
+                        <NotificationItem
+                          key={notificacion.id}
+                          notification={notificacion}
+                          onMarkAsRead={handleMarkAsRead}
+                          onDelete={handleDelete}
+                          onReply={handleReply}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()
         )}
       </Card>
       
@@ -266,6 +430,21 @@ const NotificacionesPage = () => {
           </div>
         </div>
       </Card>
+
+      {/* Response Modal */}
+      <ResponseModal
+        notification={responseModal.notification}
+        isOpen={responseModal.isOpen}
+        onClose={closeResponseModal}
+        onSendResponse={handleSendResponse}
+      />
+
+      {/* New Message Modal */}
+      <NewMessageModal
+        isOpen={newMessageModal}
+        onClose={() => setNewMessageModal(false)}
+        onSendMessage={handleSendNewMessage}
+      />
     </div>
   );
 };

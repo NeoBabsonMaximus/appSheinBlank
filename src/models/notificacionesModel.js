@@ -40,6 +40,7 @@ export const NOTIFICATION_TYPES = {
   PAGO_RECIBIDO: 'pago_recibido',
   STOCK_BAJO: 'stock_bajo',
   CLIENTE_NUEVO: 'cliente_nuevo',
+  MENSAJE_ADMIN_ENVIADO: 'mensaje_admin_enviado',
   SISTEMA: 'sistema'
 };
 
@@ -276,4 +277,53 @@ export const generateAutomaticNotifications = async (db, userId, appId, pedidos,
   }
   
   return notifications.length;
+};
+
+// Send admin response to client
+export const sendAdminResponse = async (db, appId, clientPhone, responseMessage, originalNotificationId = null) => {
+  try {
+    console.log('📤 Enviando respuesta del admin a cliente:', clientPhone);
+    
+    // Crear notificación para el cliente en la colección pública
+    const clientNotificationData = {
+      tipo: 'respuesta_admin',
+      titulo: '💬 Respuesta del administrador',
+      mensaje: responseMessage,
+      fechaCreacion: serverTimestamp(),
+      leido: false,
+      prioridad: 'high',
+      numeroTelefono: clientPhone,
+      originalNotificationId: originalNotificationId
+    };
+
+    const clientNotificationsRef = collection(db, `artifacts/${appId}/public/data/clientNotifications`);
+    const docRef = await addDoc(clientNotificationsRef, clientNotificationData);
+    
+    console.log('✅ Respuesta del admin enviada exitosamente con ID:', docRef.id);
+    return docRef.id;
+    
+  } catch (error) {
+    console.error('❌ Error enviando respuesta del admin:', error);
+    throw error;
+  }
+};
+
+// Mark message as responded
+export const markMessageAsResponded = async (db, userId, appId, notificationId, responseMessage) => {
+  try {
+    console.log('📝 Marcando mensaje como respondido:', notificationId);
+    
+    const notificationRef = doc(getCollectionRef(db, userId, appId, 'notificaciones'), notificationId);
+    await updateDoc(notificationRef, { 
+      respondido: true,
+      respuestaAdmin: responseMessage,
+      fechaRespuesta: serverTimestamp()
+    });
+    
+    console.log('✅ Mensaje marcado como respondido exitosamente');
+    
+  } catch (error) {
+    console.error('❌ Error marcando mensaje como respondido:', error);
+    throw error;
+  }
 };

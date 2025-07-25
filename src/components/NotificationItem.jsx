@@ -8,13 +8,16 @@ import {
   AlertTriangle, 
   Trash2, 
   Check,
-  Clock
+  Clock,
+  MessageCircle,
+  Reply
 } from 'lucide-react';
 
 const NotificationItem = ({ 
   notification, 
   onMarkAsRead, 
-  onDelete 
+  onDelete,
+  onReply 
 }) => {
   const getIcon = (tipo) => {
     switch (tipo) {
@@ -26,6 +29,10 @@ const NotificationItem = ({
         return <CreditCard size={20} className="text-green-500" />;
       case 'cliente_nuevo':
         return <User size={20} className="text-purple-500" />;
+      case 'mensaje_cliente':
+        return <MessageCircle size={20} className="text-green-500" />;
+      case 'mensaje_admin_enviado':
+        return <MessageCircle size={20} className="text-blue-500" />;
       case 'stock_bajo':
         return <AlertTriangle size={20} className="text-orange-500" />;
       case 'sistema':
@@ -97,6 +104,24 @@ const NotificationItem = ({
               {notification.mensaje}
             </p>
             
+            {/* Client info for messages */}
+            {notification.tipo === 'mensaje_cliente' && (
+              <div className="text-xs text-gray-500 mt-1 bg-gray-100 rounded px-2 py-1">
+                📱 Cliente: {notification.fromName || notification.clientePhone || 'Desconocido'}
+                {notification.pedidoId && (
+                  <span className="ml-2">• Pedido: {notification.pedidoId}</span>
+                )}
+              </div>
+            )}
+
+            {/* Response status */}
+            {notification.tipo === 'mensaje_cliente' && notification.respondido && (
+              <div className="text-xs text-green-600 mt-1 flex items-center">
+                <Check className="w-3 h-3 mr-1" />
+                Respondido
+              </div>
+            )}
+            
             <div className="flex items-center space-x-2 mt-2 text-xs text-gray-500">
               <Clock size={12} />
               <span>{formatDate(notification.fechaCreacion)}</span>
@@ -105,6 +130,17 @@ const NotificationItem = ({
         </div>
         
         <div className="flex items-center space-x-2 ml-4">
+          {/* Reply button for client messages */}
+          {notification.tipo === 'mensaje_cliente' && !notification.respondido && onReply && (
+            <button
+              onClick={() => onReply(notification)}
+              className="p-1 text-gray-400 hover:text-green-500 transition-colors"
+              title="Responder mensaje"
+            >
+              <Reply size={16} />
+            </button>
+          )}
+          
           {!notification.leido && (
             <button
               onClick={() => onMarkAsRead(notification.id)}
