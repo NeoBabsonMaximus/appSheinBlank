@@ -13,7 +13,12 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "start:admin": "REACT_APP_TYPE=admin react-scripts start",
+    "start:cliente": "REACT_APP_TYPE=cliente react-scripts start",
     "build": "react-scripts build",
+    "build:admin": "REACT_APP_TYPE=admin react-scripts build && mv build build-admin",
+    "build:cliente": "REACT_APP_TYPE=cliente react-scripts build && mv build build-cliente",
+    "build:both": "npm run build:admin && npm run build:cliente",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "capacitor:init": "npx cap init 'Shein Blank App' 'com.appsheinblank.starter'",
@@ -23,7 +28,9 @@
     "android:build": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
     "android:release": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease",
     "android:clean": "cd android && ./gradlew clean",
-    "deploy": "npm run build && firebase deploy"
+    "deploy": "npm run build:both && firebase deploy",
+    "deploy:admin": "npm run build:admin && firebase deploy --only hosting:admin",
+    "deploy:cliente": "npm run build:cliente && firebase deploy --only hosting:cliente"
   },
   "eslintConfig": {
     "extends": [

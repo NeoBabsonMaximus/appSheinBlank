@@ -1,5 +1,5 @@
 // PedidosPage View - Orders Management (View Layer)
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePedidosController } from '../controllers/usePedidosController';
 import Header from '../components/Header';
@@ -305,7 +305,7 @@ const ShareLinkModal = ({ isOpen, onClose, shareLink, phoneNumber }) => {
   );
 };
 
-const PedidosPage = () => {
+const PedidosPage = ({ initialOrderData, shouldOpenModal, onDataConsumed }) => {
   const { userId, db, appId } = useAuth();
   const controller = usePedidosController(db, userId, appId);
   
@@ -320,14 +320,87 @@ const PedidosPage = () => {
   const [paymentPedido, setPaymentPedido] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isFromCatalog, setIsFromCatalog] = useState(false);
+
+  // Función para marcar solicitudes como procesadas
+  const markSolicitudesAsProcessed = async (solicitudesIds) => {
+    if (!solicitudesIds || solicitudesIds.length === 0) return;
+    
+    try {
+      const { updateDoc, doc } = await import('firebase/firestore');
+      
+      const promises = solicitudesIds.map(async (id) => {
+        const solicitudRef = doc(db, `artifacts/${appId}/clientSolicitudes`, id);
+        return updateDoc(solicitudRef, { 
+          procesada: true,
+          fechaProcesamiento: new Date()
+        });
+      });
+      
+      await Promise.all(promises);
+      console.log("✅ Solicitudes marcadas como procesadas:", solicitudesIds);
+    } catch (error) {
+      console.error("❌ Error al marcar solicitudes como procesadas:", error);
+    }
+  };
+
+  // Manejar datos del catálogo cuando se abre desde el catálogo
+  useEffect(() => {
+    if (shouldOpenModal && initialOrderData) {
+      // Agregar valores por defecto para campos que pueden estar faltando
+      const completeOrderData = {
+        clienteId: '',
+        nombreCliente: '',
+        numeroTelefono: '',
+        productos: [],
+        precioTotal: 0,
+        estado: 'Pendiente',
+        fechaEstimadaLlegada: '',
+        numeroRastreo: '',
+        saldoPendiente: 0,
+        pagado: false,
+        isArchived: false,
+        shareableLinkToken: '',
+        numeroPedido: '',
+        ...initialOrderData, // Esto sobrescribe los defaults con los datos del catálogo
+      };
+      
+      // Pre-poblar el pedido en el controlador
+      controller.setCurrentPedido(completeOrderData);
+      setIsModalOpen(true);
+      setIsFromCatalog(true);
+      
+      // Notificar al padre que los datos fueron consumidos
+      if (onDataConsumed) {
+        onDataConsumed();
+      }
+    }
+  }, [shouldOpenModal, initialOrderData]); // NO incluir controller para evitar loops
 
   const handleSavePedido = async () => {
+    console.log("🔍 HandleSavePedido iniciado");
+    console.log("🔍 Productos actuales:", controller.currentPedido.productos);
+    console.log("🔍 Cantidad de productos:", controller.currentPedido.productos.length);
+    console.log("🔍 Nombre cliente:", controller.currentPedido.nombreCliente);
+    console.log("🔍 EditingId:", controller.editingId);
+    
     try {
       await controller.savePedido();
+      
+      // Si el pedido viene desde el catálogo, marcar solicitudes como procesadas
+      if (controller.currentPedido.solicitudesOriginales && controller.currentPedido.solicitudesOriginales.length > 0) {
+        await markSolicitudesAsProcessed(controller.currentPedido.solicitudesOriginales);
+      } else if (controller.currentPedido.solicitudOriginalId) {
+        await markSolicitudesAsProcessed([controller.currentPedido.solicitudOriginalId]);
+      }
+      
       setHasUnsavedChanges(false); // Resetear el estado de cambios no guardados
       setIsModalOpen(false);
+      setIsFromCatalog(false);
+      console.log("✅ Pedido guardado y modal cerrado");
     } catch (error) {
-      alert("Error al guardar el pedido. Por favor, inténtalo de nuevo.");
+      console.error("❌ Error al guardar pedido:", error);
+      alert("Error al guardar el pedido: " + error.message);
     }
   };
 
@@ -405,6 +478,7 @@ const PedidosPage = () => {
     }
     setHasUnsavedChanges(false);
     setIsModalOpen(false);
+    setIsFromCatalog(false);
     controller.resetCurrentPedido();
   };
 

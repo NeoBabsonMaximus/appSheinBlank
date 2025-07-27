@@ -3,18 +3,58 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
-  "hosting": {
-    "public": "build",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
-  }
+  "hosting": [
+    {
+      "target": "admin",
+      "public": "build-admin",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=3600"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "target": "cliente",
+      "public": "build-cliente", 
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=3600"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

@@ -295,6 +295,19 @@ export const usePedidosController = (db, userId, appId) => {
         console.log(`🔢 Número de pedido generado: ${numeroPedido}`);
       }
 
+      // Asegurar que numeroPedido siempre tenga un valor válido
+      if (!numeroPedido) {
+        if (editingId) {
+          // Para pedidos existentes sin número, usar el ID como base
+          numeroPedido = `#${editingId.slice(-6).toUpperCase()}`;
+          console.log(`🔢 Número de pedido generado para pedido existente: ${numeroPedido}`);
+        } else {
+          // Fallback para nuevos pedidos
+          numeroPedido = `#${Date.now().toString().slice(-6)}`;
+          console.log(`🔢 Número de pedido fallback: ${numeroPedido}`);
+        }
+      }
+
       const dataToSave = {
         ...currentPedido,
         clienteId: clienteIdToUse,
@@ -463,10 +476,13 @@ export const usePedidosController = (db, userId, appId) => {
 
       const newSaldoPendiente = pedido.saldoPendiente - finalAmount;
       const newPagadoStatus = newSaldoPendiente <= 0.01;
+      const currentAbonos = pedido.abonos || pedido.pagos || 0;
+      const newAbonos = currentAbonos + finalAmount;
 
       await updateDocument(db, userId, appId, 'pedidos', pedido.id, {
         saldoPendiente: newSaldoPendiente,
         pagado: newPagadoStatus,
+        abonos: newAbonos,
       });
 
       await addTransaccion(db, userId, appId, {
@@ -532,6 +548,18 @@ export const usePedidosController = (db, userId, appId) => {
 
   const generateShareLink = async (pedido) => {
     try {
+      // Validar que el pedido tenga datos válidos
+      if (!pedido || !pedido.id) {
+        throw new Error('Pedido inválido: falta ID');
+      }
+
+      console.log('🔗 Generando enlace para pedido:', {
+        id: pedido.id,
+        numeroPedido: pedido.numeroPedido,
+        nombreCliente: pedido.nombreCliente,
+        hasProducts: Array.isArray(pedido.productos)
+      });
+
       let token = pedido.shareableLinkToken;
       let sharedDocId = null;
 
@@ -550,15 +578,15 @@ export const usePedidosController = (db, userId, appId) => {
         
         // UPDATE the existing shared document with current pedido data
         await updateDocument(db, userId, appId, 'sharedPedidos', sharedDocId, {
-          nombreCliente: pedido.nombreCliente,
-          productos: pedido.productos,
-          precioTotal: pedido.precioTotal,
-          estado: pedido.estado,
-          fechaEstimadaLlegada: pedido.fechaEstimadaLlegada,
-          numeroRastreo: pedido.numeroRastreo,
-          saldoPendiente: pedido.saldoPendiente,
-          pagado: pedido.pagado,
-          numeroPedido: pedido.numeroPedido,
+          nombreCliente: pedido.nombreCliente || '',
+          productos: pedido.productos || [],
+          precioTotal: pedido.precioTotal || 0,
+          estado: pedido.estado || 'Pendiente',
+          fechaEstimadaLlegada: pedido.fechaEstimadaLlegada || '',
+          numeroRastreo: pedido.numeroRastreo || '',
+          saldoPendiente: pedido.saldoPendiente || 0,
+          pagado: pedido.pagado || false,
+          numeroPedido: pedido.numeroPedido || pedido.id || '',
         }, true);
         
         console.log("🔄 Enlace compartido actualizado con datos más recientes");
@@ -568,15 +596,15 @@ export const usePedidosController = (db, userId, appId) => {
         await addDocument(db, userId, appId, 'sharedPedidos', {
           originalPedidoId: pedido.id,
           shareableLinkToken: token,
-          nombreCliente: pedido.nombreCliente,
-          productos: pedido.productos,
-          precioTotal: pedido.precioTotal,
-          estado: pedido.estado,
-          fechaEstimadaLlegada: pedido.fechaEstimadaLlegada,
-          numeroRastreo: pedido.numeroRastreo,
-          saldoPendiente: pedido.saldoPendiente,
-          pagado: pedido.pagado,
-          numeroPedido: pedido.numeroPedido,
+          nombreCliente: pedido.nombreCliente || '',
+          productos: pedido.productos || [],
+          precioTotal: pedido.precioTotal || 0,
+          estado: pedido.estado || 'Pendiente',
+          fechaEstimadaLlegada: pedido.fechaEstimadaLlegada || '',
+          numeroRastreo: pedido.numeroRastreo || '',
+          saldoPendiente: pedido.saldoPendiente || 0,
+          pagado: pedido.pagado || false,
+          numeroPedido: pedido.numeroPedido || pedido.id || '',
         }, true);
         
         console.log("🆕 Nuevo enlace compartido creado");

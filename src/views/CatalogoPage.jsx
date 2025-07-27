@@ -1,131 +1,215 @@
-// CatalogoPage View - Product Catalog (View Layer)
+// CatalogoPage View - Client Solicitations Management (View Layer)
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useProductosController } from '../controllers/useProductosController';
+import useSolicitudesController from '../controllers/useSolicitudesController';
 import Header from '../components/Header';
 import Card from '../components/Card';
 import Button from '../components/Button';
-import Modal from '../components/Modal';
-import Input from '../components/Input';
+import SolicitudDetailsModal from '../components/SolicitudDetailsModal';
+import { Package, Users, Calendar, Phone, ShoppingBag } from 'lucide-react';
+import { formatPhoneNumber } from '../utils/formatters';
 
-const CatalogoPage = () => {
+const CatalogoPage = ({ onCreateOrder }) => {
   const { userId, db, appId } = useAuth();
-  const controller = useProductosController(db, userId, appId);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const controller = useSolicitudesController(db, userId, appId);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-  const handleSaveProducto = async () => {
-    try {
-      await controller.saveProducto();
-      setIsModalOpen(false);
-    } catch (error) {
-      alert("Error al guardar el producto. Por favor, inténtalo de nuevo.");
+  // Manejar creación de pedido desde solicitud individual
+  const handleCreateOrderFromSolicitud = (solicitud) => {
+    const orderData = {
+      nombreCliente: solicitud.nombreCliente,
+      numeroTelefono: solicitud.numeroTelefono,
+      productos: [{
+        nombreProducto: solicitud.nombreProducto,
+        cantidad: solicitud.cantidad || 1,
+        precioUnitario: 0,
+        subtotal: 0,
+        enlaceShein: solicitud.enlaceShein,
+        completed: false
+      }],
+      precioTotal: 0,
+      saldoPendiente: 0,
+      solicitudOriginalId: solicitud.id
+    };
+    
+    if (onCreateOrder) {
+      onCreateOrder('pedidos', orderData);
     }
   };
 
-  const handleDeleteProducto = async (id) => {
-    if (window.confirm("¿Estás segura de que quieres eliminar este producto?")) {
-      try {
-        await controller.deleteProductoById(id);
-      } catch (error) {
-        alert("Error al eliminar el producto. Por favor, inténtalo de nuevo.");
-      }
+  // Manejar creación de pedido desde grupo de solicitudes
+  const handleCreateOrderFromGroup = (group) => {
+    // Cada solicitud ES un producto individual
+    const allProducts = group.solicitudes.map(solicitud => ({
+      nombreProducto: solicitud.nombreProducto,
+      cantidad: solicitud.cantidad || 1,
+      precioUnitario: 0,
+      subtotal: 0,
+      enlaceShein: solicitud.enlaceShein,
+      completed: false
+    }));
+
+    const orderData = {
+      nombreCliente: group.clienteNombre,
+      numeroTelefono: group.numeroTelefono,
+      productos: allProducts,
+      precioTotal: 0,
+      saldoPendiente: 0,
+      solicitudesOriginales: group.solicitudes.map(s => s.id)
+    };
+    
+    if (onCreateOrder) {
+      onCreateOrder('pedidos', orderData);
     }
   };
 
-  const openAddModal = () => {
-    controller.resetCurrentProducto();
-    setIsModalOpen(true);
-  };
+  // Obtener grupos de solicitudes
+  const groupedSolicitudes = controller.groupSolicitudesByPhone(controller.solicitudes);
 
-  const openEditModal = (producto) => {
-    controller.setCurrentProductoForEdit(producto);
-    setIsModalOpen(true);
-  };
+  if (controller.loading) {
+    return (
+      <div className="p-4">
+        <Header title="Solicitudes de Clientes" />
+        <div className="flex items-center justify-center py-8">
+          <div className="text-gray-500">Cargando solicitudes...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4">
-      <Header title="Catálogo Personalizado" onAddClick={openAddModal} />
+      <Header title="Solicitudes de Clientes" />
+      
+      {/* Estadísticas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-600 text-sm font-medium">Total Solicitudes</p>
+              <p className="text-2xl font-bold text-blue-800">{controller.solicitudes.length}</p>
+            </div>
+            <Package className="text-blue-500" size={24} />
+          </div>
+        </div>
+        
+        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-600 text-sm font-medium">Clientes Únicos</p>
+              <p className="text-2xl font-bold text-green-800">{groupedSolicitudes.length}</p>
+            </div>
+            <Users className="text-green-500" size={24} />
+          </div>
+        </div>
+        
+        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-orange-600 text-sm font-medium">Productos Total</p>
+              <p className="text-2xl font-bold text-orange-800">
+                {controller.solicitudes.length}
+              </p>
+            </div>
+            <ShoppingBag className="text-orange-500" size={24} />
+          </div>
+        </div>
+        
+        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-purple-600 text-sm font-medium">Pendientes</p>
+              <p className="text-2xl font-bold text-purple-800">
+                {controller.solicitudes.filter(s => !s.procesada).length}
+              </p>
+            </div>
+            <Calendar className="text-purple-500" size={24} />
+          </div>
+        </div>
+      </div>
 
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {controller.productos.length === 0 ? (
-          <p className="text-center text-gray-600 col-span-full">No hay productos en el catálogo. ¡Añade uno!</p>
+      {/* Lista de Solicitudes Agrupadas por Cliente */}
+      <div className="space-y-4">
+        {groupedSolicitudes.length === 0 ? (
+          <div className="text-center py-8">
+            <Package size={48} className="mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay solicitudes pendientes</h3>
+            <p className="text-gray-500">Las nuevas solicitudes de clientes aparecerán aquí.</p>
+          </div>
         ) : (
-          controller.productos.map((producto) => (
-            <Card key={producto.id} className="flex flex-col justify-between">
-              <div>
-                {producto.fotoUrl ? (
-                  <img
-                    src={producto.fotoUrl}
-                    alt={producto.nombre}
-                    className="w-full h-48 object-cover rounded-lg mb-2"
-                    onError={(e) => { 
-                      e.target.onerror = null; 
-                      e.target.src = "https://placehold.co/400x300/E0E0E0/666666?text=No+Imagen"; 
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-48 bg-gray-200 flex items-center justify-center rounded-lg mb-2 text-gray-500">
-                    No Imagen
+          groupedSolicitudes.map((group) => (
+            <Card key={group.numeroTelefono} className="p-4">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-800">{group.clienteNombre}</h3>
+                    <div className="flex items-center text-gray-600">
+                      <Phone size={16} className="mr-1" />
+                      <span className="text-sm">{formatPhoneNumber(group.numeroTelefono)}</span>
+                    </div>
                   </div>
-                )}
-                <h3 className="text-lg font-semibold text-gray-800">{producto.nombre}</h3>
-                <p className="text-gray-600 text-sm">{producto.descripcion}</p>
-                <p className="text-gray-700 font-bold mt-2">Precio: ${producto.precioSugerido?.toFixed(2) || 'N/A'}</p>
-              </div>
-              <div className="flex justify-end space-x-2 mt-4">
-                <Button onClick={() => controller.shareProduct(producto)} className="bg-green-500 hover:bg-green-600 px-3 py-1 text-sm">
-                  Compartir
-                </Button>
-                <Button onClick={() => openEditModal(producto)} className="bg-blue-500 hover:bg-blue-600 px-3 py-1 text-sm">
-                  Editar
-                </Button>
-                <Button onClick={() => handleDeleteProducto(producto.id)} className="bg-red-500 hover:bg-red-600 px-3 py-1 text-sm">
-                  Eliminar
-                </Button>
+                  
+                  <div className="text-sm text-gray-600 mb-3">
+                    <div className="flex items-center gap-4">
+                      <span>📦 {group.solicitudes.length} solicitud(es)</span>
+                      <span>🛍️ {group.totalProductos} producto(s)</span>
+                      <span>📅 {new Date(group.fechaUltima).toLocaleDateString('es-ES')}</span>
+                    </div>
+                  </div>
+
+                  {/* Preview de productos */}
+                  <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Productos solicitados:</p>
+                    <div className="space-y-1 max-h-20 overflow-y-auto">
+                      {group.solicitudes.slice(0, 5).map((solicitud, idx) => (
+                        <p key={idx} className="text-xs text-gray-600">
+                          • {(solicitud.nombreProducto || 'Producto sin nombre').substring(0, 60)}
+                          {(solicitud.nombreProducto || '').length > 60 ? '...' : ''} (x{solicitud.cantidad || 1})
+                        </p>
+                      ))}
+                      {group.solicitudes.length > 5 && (
+                        <p className="text-xs text-gray-500 font-medium">
+                          ... y {group.solicitudes.length - 5} producto(s) más
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 ml-4">
+                  <Button
+                    onClick={() => {
+                      setSelectedGroup(group);
+                      setIsDetailsModalOpen(true);
+                    }}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 text-sm"
+                  >
+                    Ver Detalles
+                  </Button>
+                  <Button
+                    onClick={() => handleCreateOrderFromGroup(group)}
+                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 text-sm"
+                  >
+                    Crear Pedido
+                  </Button>
+                </div>
               </div>
             </Card>
           ))
         )}
       </div>
 
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={controller.editingId ? "Editar Producto" : "Añadir Nuevo Producto"}
-      >
-        <Input
-          label="Nombre del Producto"
-          id="nombreProducto"
-          value={controller.currentProducto.nombre}
-          onChange={(e) => controller.setCurrentProducto({ ...controller.currentProducto, nombre: e.target.value })}
-          placeholder="Ej: Blusa de encaje"
-        />
-        <Input
-          label="Descripción"
-          id="descripcionProducto"
-          value={controller.currentProducto.descripcion}
-          onChange={(e) => controller.setCurrentProducto({ ...controller.currentProducto, descripcion: e.target.value })}
-          placeholder="Ej: Blusa elegante para ocasiones especiales"
-        />
-        <Input
-          label="Precio Sugerido"
-          id="precioSugerido"
-          type="number"
-          value={controller.currentProducto.precioSugerido}
-          onChange={(e) => controller.setCurrentProducto({ ...controller.currentProducto, precioSugerido: e.target.value })}
-          placeholder="Ej: 299.99"
-        />
-        <Input
-          label="URL de la Foto (Opcional)"
-          id="fotoUrl"
-          value={controller.currentProducto.fotoUrl}
-          onChange={(e) => controller.setCurrentProducto({ ...controller.currentProducto, fotoUrl: e.target.value })}
-          placeholder="Ej: https://ejemplo.com/imagen.jpg"
-        />
-        <Button onClick={handleSaveProducto} className="mt-4 bg-purple-500 hover:bg-purple-600">
-          {controller.editingId ? "Guardar Cambios" : "Añadir Producto"}
-        </Button>
-      </Modal>
+      {/* Modal de Detalles de Solicitud */}
+      <SolicitudDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => {
+          setIsDetailsModalOpen(false);
+          setSelectedGroup(null);
+        }}
+        group={selectedGroup}
+        onCreateOrder={handleCreateOrderFromGroup}
+      />
     </div>
   );
 };

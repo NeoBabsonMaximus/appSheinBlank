@@ -1,7 +1,19 @@
 {
   "projects": {
-    "BLANKSHEIN": "appsheinblank"
+    "BLANKSHEIN": "appsheinblank",
+    "default": "appsheinblank"
   },
-  "targets": {},
+  "targets": {
+    "appsheinblank": {
+      "hosting": {
+        "admin": [
+          "admin-appsheinblank"
+        ],
+        "cliente": [
+          "cliente-appsheinblank"
+        ]
+      }
+    }
+  },
   "etags": {}
 }

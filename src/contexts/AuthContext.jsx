@@ -14,20 +14,13 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Get configuration from global variables injected by hosting environment
-        // eslint-disable-next-line no-undef
-        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        // eslint-disable-next-line no-undef
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
+        // Use environment configuration instead of global variables
+        const currentAppId = ENV_CONFIG.APP_ID;
+        
         setAppId(currentAppId);
 
-        // Authenticate user
-        if (initialAuthToken) {
-          await signInWithCustomToken(auth, initialAuthToken);
-        } else {
-          await signInAnonymously(auth);
-        }
+        // Authenticate user anonymously
+        await signInAnonymously(auth);
 
         // Listen for authentication state changes
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
