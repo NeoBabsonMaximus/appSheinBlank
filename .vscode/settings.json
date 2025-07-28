@@ -1,0 +1,42 @@
+{
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/build": true,
+    "**/build-admin": true,
+    "**/build-cliente": true,
+    "**/*.apk": true,
+    "**/.firebase": true,
+    "**/.git": true,
+    "**/dist": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/build": true,
+    "**/build-admin": true,
+    "**/build-cliente": true,
+    "**/*.apk": true,
+    "**/.firebase": true,
+    "**/package-lock.json": true,
+    "**/yarn.lock": true
+  },
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  },
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/build/**": true,
+    "**/build-admin/**": true,
+    "**/build-cliente/**": true
+  },
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "emmet.includeLanguages": {
+    "javascript": "javascriptreact"
+  },
+  "workbench.editor.limit.enabled": true,
+  "workbench.editor.limit.value": 5,
+  "editor.bracketPairColorization.enabled": true
+}

@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Gift, Package, MessageCircle, Phone, User, RefreshCw, Plus } from 'lucide-react';
+import { Bell, Package, MessageCircle, Phone, User, RefreshCw, Plus } from 'lucide-react';
 import { db } from '../config/firebase';
 import ENV_CONFIG from '../config/environment';
 import { useUserController } from '../controllers/useUserController';
 import useUserSolicitudesController from '../controllers/useUserSolicitudesController';
 import OrderCard from '../components/OrderCard';
 import NotificationCard from '../components/NotificationCard';
-import OfferCard from '../components/OfferCard';
 import MessageModal from '../components/MessageModal';
-import SolicitudProductosForm from '../components/SolicitudProductosForm';
+import SolicitudProductosModal from '../components/SolicitudProductosModal';
 import SolicitudCard from '../components/SolicitudCard';
 import SolicitudesUserCard from '../components/SolicitudesUserCard';
 
@@ -18,7 +17,6 @@ const UserDashboard = ({ phoneNumber, onLogout }) => {
     loading,
     userProfile,
     notifications,
-    offers,
     sendMessageToAdmin,
     markNotificationAsRead,
     deleteNotification,
@@ -31,8 +29,48 @@ const UserDashboard = ({ phoneNumber, onLogout }) => {
   // Controller para solicitudes del usuario
   const { 
     solicitudes: userSolicitudes, 
-    loading: solicitudesLoading 
+    loading: solicitudesLoading,
+    deleteSolicitud,
+    deleteStatus
   } = useUserSolicitudesController(db, phoneNumber, ENV_CONFIG.APP_ID);
+  
+  // Manejador para eliminar solicitudes con feedback
+  const handleDeleteSolicitud = async (solicitudId) => {
+    try {
+      await deleteSolicitud(solicitudId);
+      
+      // Mostrar mensaje de éxito
+      setDeleteMessage('✅ Solicitud eliminada correctamente');
+      setShowDeleteMessage(true);
+      
+      // Ocultar el mensaje después de 3 segundos
+      setTimeout(() => {
+        setShowDeleteMessage(false);
+        setTimeout(() => setDeleteMessage(''), 300); // Limpiar después de la transición
+      }, 3000);
+      
+      return true;
+    } catch (error) {
+      // Mostrar mensaje de error
+      setDeleteMessage('❌ Error al eliminar la solicitud. Intenta de nuevo.');
+      setShowDeleteMessage(true);
+      
+      // Ocultar el mensaje después de 3 segundos
+      setTimeout(() => {
+        setShowDeleteMessage(false);
+        setTimeout(() => setDeleteMessage(''), 300);
+      }, 3000);
+      
+      return Promise.reject(error);
+    }
+  };
+
+  // Manejador para cuando se crea una nueva solicitud
+  const handleSolicitudCreated = (newSolicitud) => {
+    // La lista se actualizará automáticamente a través del hook useUserSolicitudesController
+    // Podemos mostrar un mensaje de confirmación aquí si es necesario
+    console.log('Nueva solicitud creada:', newSolicitud);
+  };
 
   const [activeTab, setActiveTab] = useState('orders');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -46,6 +84,8 @@ const UserDashboard = ({ phoneNumber, onLogout }) => {
 
   // Estado para el modal de solicitud de productos SHEIN
   const [solicitudModal, setSolicitudModal] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState('');
+  const [showDeleteMessage, setShowDeleteMessage] = useState(false);
 
   // Suscripción a respuestas del admin en tiempo real
   useEffect(() => {
@@ -152,18 +192,6 @@ const UserDashboard = ({ phoneNumber, onLogout }) => {
       name: 'Notificaciones',
       icon: Bell,
       count: notifications.filter(n => !n.read).length
-    },
-    {
-      id: 'solicitudes-shein',
-      name: 'Mis Solicitudes',
-      icon: Package,
-      count: userSolicitudes.length
-    },
-    {
-      id: 'offers',
-      name: 'Ofertas',
-      icon: Gift,
-      count: offers.length
     },
     {
       id: 'productos',
@@ -361,36 +389,62 @@ const UserDashboard = ({ phoneNumber, onLogout }) => {
           </div>
         )}
 
-        {/* Mis Solicitudes SHEIN Tab */}
-        {activeTab === 'solicitudes-shein' && (
+        {/* Productos Shein Tab */}
+        {activeTab === 'productos' && (
           <div>
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Mis Solicitudes SHEIN ({userSolicitudes.length})
-              </h2>
-              <p className="text-gray-600 mb-4">
-                Aquí puedes ver el estado de todos los productos SHEIN que has solicitado
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    Productos SHEIN ({userSolicitudes.length})
+                  </h2>
+                  <p className="text-gray-600">
+                    Solicita nuevos productos y ve todas tus solicitudes anteriores
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSolicitudModal(true)}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 px-6 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all flex items-center gap-2 font-medium shadow-lg"
+                >
+                  <Plus className="w-5 h-5" />
+                  Nueva Solicitud
+                </button>
+              </div>
+              
+              {/* Mensaje de eliminación */}
+              {deleteMessage && (
+                <div className={`mt-4 p-3 rounded-lg text-sm font-medium transition-opacity duration-300 ${
+                  showDeleteMessage ? 'opacity-100' : 'opacity-0'
+                } ${
+                  deleteMessage.includes('✅') 
+                    ? 'bg-green-100 text-green-800 border border-green-200' 
+                    : 'bg-red-100 text-red-800 border border-red-200'
+                }`}>
+                  {deleteMessage}
+                </div>
+              )}
             </div>
 
+            {/* Lista de Solicitudes */}
             {solicitudesLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="text-gray-500">Cargando tus solicitudes...</div>
               </div>
             ) : userSolicitudes.length === 0 ? (
               <div className="text-center py-12">
-                <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <Package className="w-24 h-24 text-purple-300 mx-auto mb-6" />
+                <h3 className="text-xl font-medium text-gray-900 mb-4">
                   No tienes solicitudes SHEIN
                 </h3>
-                <p className="text-gray-500 mb-4">
-                  Ve a la pestaña "Productos Shein" para hacer tu primera solicitud
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  Haz tu primera solicitud de productos SHEIN. Nosotros nos encargamos de obtener toda la información del producto.
                 </p>
                 <button
-                  onClick={() => setActiveTab('productos')}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg"
+                  onClick={() => setSolicitudModal(true)}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 px-8 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all flex items-center gap-3 mx-auto text-lg font-medium shadow-lg"
                 >
-                  Solicitar Productos
+                  <Plus className="w-6 h-6" />
+                  Solicitar Primer Producto
                 </button>
               </div>
             ) : (
@@ -399,131 +453,20 @@ const UserDashboard = ({ phoneNumber, onLogout }) => {
                   <SolicitudesUserCard
                     key={solicitud.id}
                     solicitud={solicitud}
+                    onDelete={handleDeleteSolicitud}
                   />
                 ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Offers Tab */}
-        {activeTab === 'offers' && (
-          <div>
-            <div className="mb-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    Ofertas Especiales ({offers.length})
-                  </h2>
-                  <p className="text-gray-600">
-                    Aprovecha nuestras ofertas exclusivas y promociones especiales.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {offers.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Gift className="w-12 h-12 text-gray-400" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  No hay ofertas disponibles
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Las ofertas especiales y promociones aparecerán aquí cuando estén disponibles.
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {offers.map((offer) => (
-                  <OfferCard key={offer.id} offer={offer} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Productos Shein Tab */}
-        {activeTab === 'productos' && (
-          <div>
-            {!solicitudModal ? (
-              <>
-                <div className="mb-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                        Productos SHEIN ({userSolicitudes.length})
-                      </h2>
-                      <p className="text-gray-600">
-                        Solicita nuevos productos y ve todas tus solicitudes anteriores
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setSolicitudModal(true)}
-                      className="bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 px-6 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all flex items-center gap-2 font-medium shadow-lg"
-                    >
-                      <Plus className="w-5 h-5" />
-                      Nueva Solicitud
-                    </button>
-                  </div>
-                </div>
-
-                {/* Lista de Solicitudes */}
-                {solicitudesLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-gray-500">Cargando tus solicitudes...</div>
-                  </div>
-                ) : userSolicitudes.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Package className="w-24 h-24 text-purple-300 mx-auto mb-6" />
-                    <h3 className="text-xl font-medium text-gray-900 mb-4">
-                      No tienes solicitudes SHEIN
-                    </h3>
-                    <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                      Haz tu primera solicitud de productos SHEIN. Nosotros nos encargamos de obtener toda la información del producto.
-                    </p>
-                    <button
-                      onClick={() => setSolicitudModal(true)}
-                      className="bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 px-8 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all flex items-center gap-3 mx-auto text-lg font-medium shadow-lg"
-                    >
-                      <Plus className="w-6 h-6" />
-                      Solicitar Primer Producto
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {userSolicitudes.map((solicitud) => (
-                      <SolicitudesUserCard
-                        key={solicitud.id}
-                        solicitud={solicitud}
-                      />
-                    ))}
-                    
-                    {/* Botón flotante para nueva solicitud */}
-                    <div className="text-center pt-6">
-                      <button
-                        onClick={() => setSolicitudModal(true)}
-                        className="bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3 px-8 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all flex items-center gap-2 mx-auto font-medium shadow-lg"
-                      >
-                        <Plus className="w-5 h-5" />
-                        Solicitar Otro Producto
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div>
-                <div className="mb-6">
+                
+                {/* Botón flotante para nueva solicitud */}
+                <div className="text-center pt-6">
                   <button
-                    onClick={() => setSolicitudModal(false)}
-                    className="text-gray-600 hover:text-gray-800 flex items-center gap-2 mb-4"
+                    onClick={() => setSolicitudModal(true)}
+                    className="bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3 px-8 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all flex items-center gap-2 mx-auto font-medium shadow-lg"
                   >
-                    ← Volver a mis solicitudes
+                    <Plus className="w-5 h-5" />
+                    Solicitar Otro Producto
                   </button>
                 </div>
-                <SolicitudProductosForm phoneNumber={phoneNumber} />
               </div>
             )}
           </div>
@@ -538,6 +481,14 @@ const UserDashboard = ({ phoneNumber, onLogout }) => {
         pedido={messageModal.pedido}
         messages={messageModal.messages}
         currentUserPhone={phoneNumber}
+      />
+
+      {/* Solicitud Productos Modal */}
+      <SolicitudProductosModal
+        isOpen={solicitudModal}
+        onClose={() => setSolicitudModal(false)}
+        phoneNumber={phoneNumber}
+        onSolicitudCreated={handleSolicitudCreated}
       />
     </div>
   );

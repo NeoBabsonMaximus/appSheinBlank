@@ -40,15 +40,35 @@ const CatalogoPage = ({ onCreateOrder }) => {
 
   // Manejar creación de pedido desde grupo de solicitudes
   const handleCreateOrderFromGroup = (group) => {
-    // Cada solicitud ES un producto individual
-    const allProducts = group.solicitudes.map(solicitud => ({
-      nombreProducto: solicitud.nombreProducto,
-      cantidad: solicitud.cantidad || 1,
-      precioUnitario: 0,
-      subtotal: 0,
-      enlaceShein: solicitud.enlaceShein,
-      completed: false
-    }));
+    const allProducts = [];
+    
+    // Procesar cada solicitud
+    group.solicitudes.forEach(solicitud => {
+      if (solicitud.productos && solicitud.productos.length > 0) {
+        // Nueva estructura con array de productos
+        solicitud.productos.forEach(producto => {
+          allProducts.push({
+            nombreProducto: producto.nombre,
+            cantidad: producto.cantidad || 1,
+            precioUnitario: 0,
+            subtotal: 0,
+            enlaceShein: producto.enlace,
+            detalles: producto.comentario,
+            completed: false
+          });
+        });
+      } else {
+        // Estructura legacy
+        allProducts.push({
+          nombreProducto: solicitud.nombreProducto,
+          cantidad: solicitud.cantidad || 1,
+          precioUnitario: 0,
+          subtotal: 0,
+          enlaceShein: solicitud.linkProducto || solicitud.enlaceShein,
+          completed: false
+        });
+      }
+    });
 
     const orderData = {
       nombreCliente: group.clienteNombre,
@@ -109,7 +129,14 @@ const CatalogoPage = ({ onCreateOrder }) => {
             <div>
               <p className="text-orange-600 text-sm font-medium">Productos Total</p>
               <p className="text-2xl font-bold text-orange-800">
-                {controller.solicitudes.length}
+                {controller.solicitudes.reduce((total, solicitud) => {
+                  // Si tiene array de productos, contar todos los productos
+                  if (solicitud.productos && solicitud.productos.length > 0) {
+                    return total + solicitud.productos.length;
+                  }
+                  // Formato legacy, contar como 1 producto
+                  return total + 1;
+                }, 0)}
               </p>
             </div>
             <ShoppingBag className="text-orange-500" size={24} />
@@ -153,7 +180,14 @@ const CatalogoPage = ({ onCreateOrder }) => {
                   <div className="text-sm text-gray-600 mb-3">
                     <div className="flex items-center gap-4">
                       <span>📦 {group.solicitudes.length} solicitud(es)</span>
-                      <span>🛍️ {group.totalProductos} producto(s)</span>
+                      <span>🛍️ {group.solicitudes.reduce((total, solicitud) => {
+                        // Si tiene array de productos, contar todos los productos
+                        if (solicitud.productos && solicitud.productos.length > 0) {
+                          return total + solicitud.productos.length;
+                        }
+                        // Formato legacy, contar como 1 producto
+                        return total + 1;
+                      }, 0)} producto(s)</span>
                       <span>📅 {new Date(group.fechaUltima).toLocaleDateString('es-ES')}</span>
                     </div>
                   </div>
@@ -162,15 +196,28 @@ const CatalogoPage = ({ onCreateOrder }) => {
                   <div className="bg-gray-50 rounded-lg p-3 mb-3">
                     <p className="text-sm font-medium text-gray-700 mb-2">Productos solicitados:</p>
                     <div className="space-y-1 max-h-20 overflow-y-auto">
-                      {group.solicitudes.slice(0, 5).map((solicitud, idx) => (
-                        <p key={idx} className="text-xs text-gray-600">
-                          • {(solicitud.nombreProducto || 'Producto sin nombre').substring(0, 60)}
-                          {(solicitud.nombreProducto || '').length > 60 ? '...' : ''} (x{solicitud.cantidad || 1})
-                        </p>
-                      ))}
+                      {group.solicitudes.slice(0, 5).map((solicitud, idx) => {
+                        // Si la solicitud tiene array de productos individuales, mostrarlos
+                        if (solicitud.productos && solicitud.productos.length > 0) {
+                          return solicitud.productos.map((producto, prodIdx) => (
+                            <p key={`${idx}-${prodIdx}`} className="text-xs text-gray-600">
+                              • {producto.nombre} (x{producto.cantidad})
+                              {producto.comentario && <span className="text-gray-500"> - {producto.comentario}</span>}
+                            </p>
+                          ));
+                        } else {
+                          // Formato legacy
+                          return (
+                            <p key={idx} className="text-xs text-gray-600">
+                              • {(solicitud.nombreProducto || 'Producto sin nombre').substring(0, 60)}
+                              {(solicitud.nombreProducto || '').length > 60 ? '...' : ''} (x{solicitud.cantidad || 1})
+                            </p>
+                          );
+                        }
+                      })}
                       {group.solicitudes.length > 5 && (
                         <p className="text-xs text-gray-500 font-medium">
-                          ... y {group.solicitudes.length - 5} producto(s) más
+                          ... y {group.solicitudes.length - 5} solicitud(es) más
                         </p>
                       )}
                     </div>

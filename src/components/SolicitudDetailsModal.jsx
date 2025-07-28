@@ -80,6 +80,20 @@ const SolicitudDetailsModal = ({ isOpen, onClose, group, onCreateOrder }) => {
                   Producto:
                 </p>
                 <div className="bg-gray-50 rounded p-3">
+                  {/* Imagen del producto si existe */}
+                  {solicitud.imagenProducto && (
+                    <div className="mb-3">
+                      <img 
+                        src={solicitud.imagenProducto} 
+                        alt={solicitud.nombreProducto || 'Producto SHEIN'}
+                        className="w-full h-32 object-cover rounded"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+                  
                   <div className="flex justify-between items-start py-2">
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-800">
@@ -100,12 +114,51 @@ const SolicitudDetailsModal = ({ isOpen, onClose, group, onCreateOrder }) => {
                           Notas: {solicitud.comentarios}
                         </p>
                       )}
-                      {solicitud.enlaceShein && (
-                        <p className="text-xs text-blue-600">
-                          <a href={solicitud.enlaceShein} target="_blank" rel="noopener noreferrer">
-                            Ver en Shein →
-                          </a>
+                      {/* Enlaces de productos */}
+                      {(solicitud.linkProducto || (solicitud.linksProductos && solicitud.linksProductos.length > 0)) && (
+                        <div className="mt-2">
+                          {solicitud.linkProducto && (
+                            <p className="text-xs text-blue-600 mb-1">
+                              <a href={solicitud.linkProducto} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                🔗 Ver producto principal en SHEIN →
+                              </a>
+                            </p>
+                          )}
+                          {solicitud.linksProductos && solicitud.linksProductos.length > 1 && (
+                            <div className="space-y-1">
+                              {solicitud.linksProductos.slice(1).map((link, linkIndex) => (
+                                <p key={linkIndex} className="text-xs text-blue-600">
+                                  <a href={link} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                    🔗 Producto adicional {linkIndex + 2} en SHEIN →
+                                  </a>
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                          {!solicitud.linkProducto && solicitud.linksProductos && solicitud.linksProductos.length > 0 && (
+                            <div className="space-y-1">
+                              {solicitud.linksProductos.map((link, linkIndex) => (
+                                <p key={linkIndex} className="text-xs text-blue-600">
+                                  <a href={link} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                    🔗 Producto {linkIndex + 1} en SHEIN →
+                                  </a>
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {/* Precio del producto */}
+                      {solicitud.precioProducto && (
+                        <p className="text-xs text-green-600 font-medium mt-1">
+                          💰 Precio: {solicitud.precioProducto}
                         </p>
+                      )}
+                      {/* Descripción del producto */}
+                      {solicitud.descripcionProducto && (
+                        <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-gray-700">
+                          <strong>Descripción:</strong> {solicitud.descripcionProducto}
+                        </div>
                       )}
                     </div>
                     <div className="text-right ml-4">

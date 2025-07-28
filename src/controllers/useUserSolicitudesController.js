@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, deleteDoc } from 'firebase/firestore';
 
 const useUserSolicitudesController = (db, phoneNumber, appId) => {
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deleteStatus, setDeleteStatus] = useState({ loading: false, error: null });
 
   useEffect(() => {
     if (!db || !phoneNumber || !appId) {
@@ -91,10 +92,34 @@ const useUserSolicitudesController = (db, phoneNumber, appId) => {
     }
   }, [db, phoneNumber, appId]);
 
+  // Función para eliminar una solicitud
+  const deleteSolicitud = async (solicitudId) => {
+    if (!db || !appId) {
+      return Promise.reject(new Error('Base de datos o appId no disponibles'));
+    }
+
+    setDeleteStatus({ loading: true, error: null });
+
+    try {
+      console.log(`🗑️ Eliminando solicitud: ${solicitudId}`);
+      const solicitudRef = doc(db, `artifacts/${appId}/clientSolicitudes`, solicitudId);
+      await deleteDoc(solicitudRef);
+      console.log(`✅ Solicitud eliminada con éxito: ${solicitudId}`);
+      setDeleteStatus({ loading: false, error: null });
+      return true;
+    } catch (error) {
+      console.error(`❌ Error al eliminar solicitud ${solicitudId}:`, error);
+      setDeleteStatus({ loading: false, error });
+      return Promise.reject(error);
+    }
+  };
+
   return {
     solicitudes,
     loading,
-    error
+    error,
+    deleteSolicitud,
+    deleteStatus
   };
 };
 
